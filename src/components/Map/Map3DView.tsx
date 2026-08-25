@@ -150,7 +150,7 @@ export function Map3DView({
     <div className="relative w-full h-full min-h-[500px] rounded-3xl overflow-hidden border border-[#025259]/20 bg-[#FDF8F0] shadow-2xl flex flex-col">
       
       {/* 3D Top Floating Control Bar */}
-      <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-2 bg-[#FFFFFF]/95 backdrop-blur-md p-2 rounded-2xl border border-[#025259]/15 shadow-xl max-w-[calc(100%-2rem)]">
+      <div className="absolute top-4 left-4 z-30 pointer-events-auto flex flex-wrap items-center gap-2 bg-[#FFFFFF]/95 backdrop-blur-md p-2 rounded-2xl border border-[#025259]/15 shadow-xl max-w-[calc(100%-2rem)]">
         
         {/* Filter Buttons */}
         <div className="flex items-center gap-1 bg-[#FAF3E7] p-1 rounded-xl border border-[#025259]/10">
