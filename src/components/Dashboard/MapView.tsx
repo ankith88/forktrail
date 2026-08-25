@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { GoogleMap, useJsApiLoader, MarkerF, PolylineF, InfoWindowF } from '@react-google-maps/api';
 import { VisitedPlace, WishlistItem, TimelineChapter } from '@/types';
-import { Star, MapPin, Heart, Utensils, Calendar, ExternalLink, CheckCircle2, ChevronRight, Compass } from 'lucide-react';
+import { Star, MapPin, Heart, Utensils, Calendar, ExternalLink, CheckCircle2, ChevronRight, Compass, Navigation } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MapViewProps {
@@ -21,6 +21,9 @@ const defaultMapContainerStyle = {
   width: '100%',
   height: '100%',
 };
+
+// Default fallback city center (Sydney CBD) if geolocation unavailable and no places logged
+const DEFAULT_CENTER = { lat: -33.8688, lng: 151.2093 };
 
 // Warm light map style palette matching #FDF8F0 cream canvas
 const warmMapStyle = [
@@ -55,7 +58,46 @@ export function MapView({
     googleMapsApiKey: isGoogleMapsReady ? apiKey : '',
   });
 
+  const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
   const [activeInfoWindow, setActiveInfoWindow] = useState<VisitedPlace | WishlistItem | null>(null);
+
+  // Geolocation detector
+  const requestUserLocation = () => {
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+      setIsLocating(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setUserLocation(coords);
+          setIsLocating(false);
+          if (mapInstance) {
+            mapInstance.panTo(coords);
+            mapInstance.setZoom(14);
+          }
+        },
+        (error) => {
+          console.warn('Geolocation error or permission denied:', error);
+          setIsLocating(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    }
+  };
+
+  useEffect(() => {
+    requestUserLocation();
+  }, []);
+
+  useEffect(() => {
+    if (mapInstance && userLocation) {
+      mapInstance.panTo(userLocation);
+    }
+  }, [mapInstance, userLocation]);
 
   // Filter visited places based on selected day chapter
   const filteredVisitedPlaces = useMemo(() => {
@@ -65,16 +107,19 @@ export function MapView({
     return visitedPlaces.filter(p => p.chapterId === chapter.id);
   }, [visitedPlaces, activeDayFilter, chapters]);
 
-  // Center map dynamically based on places
+  // Center map dynamically based on user location, places, or fallback city
   const center = useMemo(() => {
+    if (userLocation) {
+      return userLocation;
+    }
     if (visitedPlaces.length > 0) {
       return { lat: visitedPlaces[0].lat, lng: visitedPlaces[0].lng };
     }
     if (wishlistItems.length > 0) {
       return { lat: wishlistItems[0].lat, lng: wishlistItems[0].lng };
     }
-    return { lat: 20.0, lng: 0.0 };
-  }, [visitedPlaces, wishlistItems]);
+    return DEFAULT_CENTER;
+  }, [userLocation, visitedPlaces, wishlistItems]);
 
   // Polyline routes connecting places chronologically per day
   const polylineRoutes = useMemo(() => {
@@ -130,10 +175,31 @@ export function MapView({
             Day {chap.dayNumber}
           </button>
         ))}
+
+        <button
+          onClick={requestUserLocation}
+          disabled={isLocating}
+          title="Center map on your current location"
+          className={cn(
+            "px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1 transition-all border",
+            userLocation
+              ? "bg-[#025259] text-white border-[#025259] shadow-sm hover:bg-[#03717b]"
+              : "bg-[#FFFFFF] text-[#025259] border-[#025259]/20 hover:bg-[#FAF3E7]"
+          )}
+        >
+          <Navigation className={cn("h-3 w-3 text-[#ff947a]", isLocating && "animate-spin")} />
+          <span>{isLocating ? 'Locating...' : 'My Location'}</span>
+        </button>
       </div>
 
       {/* Map Legend */}
       <div className="absolute top-4 right-4 z-20 hidden sm:flex items-center gap-3 bg-[#FFFFFF]/95 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#025259]/15 text-xs text-[#025259] font-medium shadow-md">
+        {userLocation && (
+          <span className="flex items-center gap-1.5 font-bold">
+            <span className="w-3 h-3 rounded-full bg-[#2563EB] shadow-sm animate-ping" />
+            Your Location
+          </span>
+        )}
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full bg-[#ff947a] shadow-sm" />
           Visited
@@ -150,12 +216,30 @@ export function MapView({
           mapContainerStyle={defaultMapContainerStyle}
           center={center}
           zoom={13}
+          onLoad={(map) => setMapInstance(map)}
           options={{
             styles: warmMapStyle,
             disableDefaultUI: false,
             zoomControl: true,
           }}
         >
+          {/* User Current Location Marker */}
+          {userLocation && (
+            <MarkerF
+              key="user-current-location-2d"
+              position={userLocation}
+              title="Your Current Location"
+              icon={{
+                path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+                fillColor: '#2563EB',
+                fillOpacity: 1,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 2,
+                scale: 2,
+              }}
+            />
+          )}
+
           {/* Visited Places Markers (Salmon #ff947a) */}
           {filteredVisitedPlaces.map((place) => (
             <MarkerF

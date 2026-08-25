@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { VisitedPlace, TimelineChapter } from '@/types';
 import { getLocalDateString } from '@/lib/utils';
 import { X, MapPin, Star, Utensils, Tag, Calendar, Navigation, Loader2 } from 'lucide-react';
+import { VoiceNoteRecorder } from '@/components/ai/VoiceNoteRecorder';
+import { VoiceNoteAnalysis } from '@/types';
 
 interface AddVisitModalProps {
   isOpen: boolean;
@@ -266,6 +268,17 @@ export function AddVisitModal({
               />
             </div>
           </div>
+
+          {/* AI Voice-to-Tasting Note Recorder */}
+          <VoiceNoteRecorder
+            onApplyAnalysis={(analysis: VoiceNoteAnalysis) => {
+              const combinedNotes = `Aroma & Flavor: ${analysis.aromaAndFlavor}\nTexture: ${analysis.textureAndPresentation}\nVibe: ${analysis.valueAndVibe}`;
+              setTastingNotes((prev) => (prev ? `${prev}\n\n${combinedNotes}` : combinedNotes));
+              if (analysis.standoutDish && !recommendedDish) {
+                setRecommendedDish(analysis.standoutDish);
+              }
+            }}
+          />
 
           {/* Tasting Notes */}
           <div>

@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { TimelineChapter, VisitedPlace } from '@/types';
-import { Calendar, MapPin, Star, Utensils, Tag, Plus, Edit3, Trash2, ChevronRight, DollarSign } from 'lucide-react';
+import { Calendar, MapPin, Star, Utensils, Tag, Plus, Edit3, Trash2, ChevronRight, DollarSign, Share2, Search, Sparkles } from 'lucide-react';
 import { cn, formatDate } from '@/lib/utils';
+import { PalateScoreBadge } from '@/components/ai/PalateScoreBadge';
 
 interface TimelineViewProps {
   chapters: TimelineChapter[];
@@ -12,6 +13,8 @@ interface TimelineViewProps {
   onSelectPlace: (place: VisitedPlace) => void;
   onOpenAddModal: (chapterId?: string) => void;
   onDeletePlace: (placeId: string) => void;
+  onOpenVisualSearch?: (photoUrl: string) => void;
+  onOpenSocialCaptions?: (place: VisitedPlace) => void;
 }
 
 export function TimelineView({
@@ -21,6 +24,8 @@ export function TimelineView({
   onSelectPlace,
   onOpenAddModal,
   onDeletePlace,
+  onOpenVisualSearch,
+  onOpenSocialCaptions,
 }: TimelineViewProps) {
   return (
     <div className="space-y-8">
@@ -103,7 +108,10 @@ export function TimelineView({
                                 {place.category}
                               </span>
                               
-                              {/* Rating Stars (Muted Gold #E3A857) */}
+                              {/* Palate Score Badge */}
+                              <PalateScoreBadge venue={{ name: place.name, category: place.category, address: place.address, notes: place.tastingNotes }} />
+
+                              {/* Rating Stars */}
                               <div className="flex items-center gap-1 bg-[#E3A857]/20 px-2 py-0.5 rounded-md text-xs font-bold text-[#025259]">
                                 <Star className="h-3.5 w-3.5 fill-[#E3A857] text-[#E3A857]" />
                                 <span>{place.rating}.0</span>
@@ -169,19 +177,48 @@ export function TimelineView({
                                 {place.photoUrls.slice(0, 3).map((url, pIdx) => (
                                   <div
                                     key={pIdx}
-                                    className="relative h-28 w-28 sm:h-32 sm:w-32 rounded-xl overflow-hidden border border-stone-200 shadow-sm group-hover/card:scale-102 transition"
+                                    className="relative group/photo h-28 w-28 sm:h-32 sm:w-32 rounded-xl overflow-hidden border border-stone-200 shadow-sm group-hover/card:scale-102 transition"
                                   >
                                     <img
                                       src={url}
                                       alt={`${place.name} dish ${pIdx + 1}`}
                                       className="h-full w-full object-cover"
                                     />
+                                    {onOpenVisualSearch && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onOpenVisualSearch(url);
+                                        }}
+                                        className="absolute inset-0 bg-black/50 opacity-0 group-hover/photo:opacity-100 transition flex flex-col items-center justify-center gap-1 text-[#ff947a] text-[10px] font-bold p-1 text-center"
+                                        title="Find Dishes Like This"
+                                      >
+                                        <Search className="h-4 w-4 text-[#ff947a]" />
+                                        <span>Find Similar Dishes</span>
+                                      </button>
+                                    )}
                                   </div>
                                 ))}
                               </div>
                             )}
 
                             <div className="flex items-center gap-2 pt-1">
+                              {onOpenSocialCaptions && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onOpenSocialCaptions(place);
+                                  }}
+                                  className="flex items-center gap-1.5 rounded-lg border border-[#ff947a]/40 bg-[#ff947a]/15 px-2.5 py-1 text-xs font-bold text-[#025259] hover:bg-[#ff947a] transition shadow-sm"
+                                  title="Share & Generate Captions"
+                                >
+                                  <Share2 className="h-3.5 w-3.5 text-[#ff947a]" />
+                                  <span>Share Captions</span>
+                                </button>
+                              )}
+
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Compass, MapPin, Heart, Sparkles, BookOpen, Layers, Plus, User, LogOut, LogIn } from 'lucide-react';
+import { Compass, MapPin, Heart, Sparkles, BookOpen, Layers, Plus, User, LogOut, LogIn, Camera, Route } from 'lucide-react';
 import { Trip } from '@/types';
 import { User as FirebaseUser } from 'firebase/auth';
 
@@ -14,6 +14,8 @@ interface NavbarProps {
   onOpenCreateTrip: () => void;
   onOpenWishlist: () => void;
   onOpenPhotoUploader: () => void;
+  onOpenMenuScanner?: () => void;
+  onOpenItineraryPlanner?: () => void;
   onOpenAuth: () => void;
   currentUser: FirebaseUser | null;
   onSignOut: () => void;
@@ -28,6 +30,8 @@ export function Navbar({
   onOpenCreateTrip,
   onOpenWishlist,
   onOpenPhotoUploader,
+  onOpenMenuScanner,
+  onOpenItineraryPlanner,
   onOpenAuth,
   currentUser,
   onSignOut,
@@ -118,6 +122,27 @@ export function Navbar({
                 <Layers className="h-3.5 w-3.5 text-[#ff947a]" />
                 <span>3D Map</span>
               </Link>
+
+              {onOpenMenuScanner && (
+                <button
+                  onClick={onOpenMenuScanner}
+                  className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-white hover:text-[#ff947a] transition"
+                >
+                  <Camera className="h-3.5 w-3.5 text-[#ff947a]" />
+                  <span>Menu Decoder</span>
+                </button>
+              )}
+
+              {onOpenItineraryPlanner && (
+                <button
+                  onClick={onOpenItineraryPlanner}
+                  className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-white hover:text-[#ff947a] transition"
+                >
+                  <Route className="h-3.5 w-3.5 text-[#ff947a]" />
+                  <span>AI Itinerary</span>
+                </button>
+              )}
+
               {activeTrip && (
                 <>
                   <span className="h-3 w-[1px] bg-[#03717b]" />

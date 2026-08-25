@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { WishlistItem } from '@/types';
-import { X, Search, Heart, MapPin, Plus, CheckCircle2, Star, Tag, Loader2 } from 'lucide-react';
+import { X, Search, Heart, MapPin, Plus, CheckCircle2, Star, Tag, Loader2, Route } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PalateScoreBadge } from '@/components/ai/PalateScoreBadge';
 
 interface WishlistDrawerProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface WishlistDrawerProps {
   onAddWishlistItem: (item: Partial<WishlistItem>) => void;
   onConvertToVisited: (item: WishlistItem) => void;
   onRemoveWishlistItem: (id: string) => void;
+  onOpenItineraryPlanner?: () => void;
 }
 
 export function WishlistDrawer({
@@ -21,6 +23,7 @@ export function WishlistDrawer({
   onAddWishlistItem,
   onConvertToVisited,
   onRemoveWishlistItem,
+  onOpenItineraryPlanner,
 }: WishlistDrawerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -93,6 +96,17 @@ export function WishlistDrawer({
           </div>
 
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
+            
+            {/* Itinerary AI Launcher Button */}
+            {onOpenItineraryPlanner && (
+              <button
+                onClick={onOpenItineraryPlanner}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#025259] p-3 text-xs font-bold text-white hover:bg-[#013b40] transition shadow-md"
+              >
+                <Route className="h-4 w-4 text-[#ff947a]" />
+                <span>Optimize Wishlist into Itinerary</span>
+              </button>
+            )}
             
             {/* Search Box */}
             <form onSubmit={handleSearch} className="space-y-3">
@@ -217,7 +231,8 @@ export function WishlistDrawer({
                         <h4 className="font-bold text-sm text-[#025259] group-hover:text-[#ff947a] transition">
                           {item.name}
                         </h4>
-                        <p className="text-xs text-stone-600 flex items-center gap-1 mt-0.5">
+                        <PalateScoreBadge venue={{ name: item.name, category: item.category, address: item.address, notes: item.notes }} className="mt-1" />
+                        <p className="text-xs text-stone-600 flex items-center gap-1 mt-1">
                           <MapPin className="h-3 w-3 text-[#ff947a] shrink-0" />
                           <span className="truncate">{item.address}</span>
                         </p>

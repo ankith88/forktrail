@@ -119,3 +119,80 @@ export interface ReelData {
   slides: ReelSlide[];
 }
 
+export interface DecodedDish {
+  originalName: string;
+  translatedName: string;
+  description: string;
+  ingredients: string[];
+  allergens: string[];
+  isSpecialty: boolean;
+  price: string;
+}
+
+export interface VoiceNoteAnalysis {
+  aromaAndFlavor: string;
+  textureAndPresentation: string;
+  standoutDish: string;
+  valueAndVibe: string;
+  rawTranscription?: string;
+}
+
+export interface TasteProfile {
+  summary: string;
+  topCuisines: string[];
+  keyFlavors: string[];
+  diningStyle: string;
+  computedAt: string;
+}
+
+export interface PalateMatchResult {
+  matchPercentage: number;
+  reasoning: string;
+}
+
+export interface ItinerarySlot {
+  timeSlot: string;
+  venueName: string;
+  category: string;
+  activityType: string;
+  address: string;
+  lat: number;
+  lng: number;
+  notes: string;
+  estimatedDuration: string;
+}
+
+export interface ItineraryDay {
+  dayNumber: number;
+  title: string;
+  schedule: ItinerarySlot[];
+}
+
+export interface VisualSearchResult {
+  dishAttributes: {
+    dishType: string;
+    style: string;
+    toppings: string[];
+  };
+  nearbyMatches: {
+    placeId: string;
+    name: string;
+    address: string;
+    rating: number;
+    userRatingsTotal?: number;
+    lat: number;
+    lng: number;
+    distanceKm: number;
+    matchingSpecialty: string;
+    photoUrl?: string;
+  }[];
+}
+
+export interface SocialCaptions {
+  instagram: string;
+  twitter: string;
+  substack: string;
+  bourdain: string;
+}
+
+

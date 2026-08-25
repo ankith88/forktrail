@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, MarkerF, PolylineF, InfoWindowF } from '@react-google-maps/api';
 import { VisitedPlace, WishlistItem, TimelineChapter } from '@/types';
-import { Star, MapPin, Heart, Utensils, Calendar, ExternalLink, CheckCircle2, RotateCw, Eye, Sparkles, Sliders, Layers } from 'lucide-react';
+import { Star, MapPin, Heart, Utensils, Calendar, ExternalLink, CheckCircle2, RotateCw, Eye, Sparkles, Sliders, Layers, Navigation } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Map3DViewProps {
@@ -19,6 +19,9 @@ const mapContainerStyle = {
   width: '100%',
   height: '100%',
 };
+
+// Default fallback city center (Sydney CBD) if geolocation unavailable and no places logged
+const DEFAULT_CENTER = { lat: -33.8688, lng: 151.2093 };
 
 // Vector map style tailored to ForkTrail's #FDF8F0 Warm Cream & #025259 Deep Pine palette
 const map3DVectorStyle = [
@@ -58,10 +61,51 @@ export function Map3DView({
   const [tiltAngle, setTiltAngle] = useState(55); // 55° 3D perspective pitch
   const [heading, setHeading] = useState(0);
 
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+
   const [activeInfoWindow, setActiveInfoWindow] = useState<VisitedPlace | WishlistItem | null>(null);
 
   // Rotation interval ref
   const rotationRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Geolocation detector
+  const requestUserLocation = () => {
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+      setIsLocating(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setUserLocation(coords);
+          setIsLocating(false);
+          if (mapInstance) {
+            mapInstance.panTo(coords);
+            mapInstance.setZoom(14);
+          }
+        },
+        (error) => {
+          console.warn('Geolocation error or permission denied:', error);
+          setIsLocating(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    }
+  };
+
+  // Request user location on mount
+  useEffect(() => {
+    requestUserLocation();
+  }, []);
+
+  // Pan map when mapInstance or userLocation becomes available
+  useEffect(() => {
+    if (mapInstance && userLocation) {
+      mapInstance.panTo(userLocation);
+    }
+  }, [mapInstance, userLocation]);
 
   // Filter items based on activeFilter
   const displayVisited = useMemo(() => {
@@ -74,16 +118,19 @@ export function Map3DView({
     return wishlistItems;
   }, [wishlistItems, activeFilter]);
 
-  // Center map on first place or global neutral center
+  // Center map prioritizing user location, then first place, or default city center
   const center = useMemo(() => {
+    if (userLocation) {
+      return userLocation;
+    }
     if (visitedPlaces.length > 0) {
       return { lat: visitedPlaces[0].lat, lng: visitedPlaces[0].lng };
     }
     if (wishlistItems.length > 0) {
       return { lat: wishlistItems[0].lat, lng: wishlistItems[0].lng };
     }
-    return { lat: 20.0, lng: 0.0 };
-  }, [visitedPlaces, wishlistItems]);
+    return DEFAULT_CENTER;
+  }, [userLocation, visitedPlaces, wishlistItems]);
 
   // Auto rotation 3D effect
   useEffect(() => {
@@ -220,10 +267,32 @@ export function Map3DView({
           <span>{isAutoRotating ? 'Orbiting 360°' : 'Auto Orbit'}</span>
         </button>
 
+        {/* Center on My Location Button */}
+        <button
+          onClick={requestUserLocation}
+          disabled={isLocating}
+          title="Center map on your current location"
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition-all",
+            userLocation
+              ? "bg-[#025259] text-white border-[#025259] shadow-md hover:bg-[#03717b]"
+              : "bg-[#FFFFFF] text-[#025259] border-[#025259]/20 hover:bg-[#FAF3E7]"
+          )}
+        >
+          <Navigation className={cn("h-3.5 w-3.5 text-[#ff947a]", isLocating && "animate-spin")} />
+          <span>{isLocating ? 'Locating...' : 'My Location'}</span>
+        </button>
+
       </div>
 
       {/* 3D Legend Bar */}
       <div className="absolute top-4 right-4 z-20 hidden md:flex items-center gap-3 bg-[#FFFFFF]/95 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-[#025259]/15 text-xs text-[#025259] font-bold shadow-md">
+        {userLocation && (
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-[#2563EB] shadow-sm animate-ping" />
+            Your Location
+          </span>
+        )}
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full bg-[#ff947a] shadow-sm animate-pulse" />
           Visited 3D Pin
@@ -252,6 +321,23 @@ export function Map3DView({
             tilt: tiltAngle,
           }}
         >
+          {/* User Current Location Pin (Vibrant Blue Pulse Marker) */}
+          {userLocation && (
+            <MarkerF
+              key="user-current-location-3d"
+              position={userLocation}
+              title="Your Current Location"
+              icon={{
+                path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+                fillColor: '#2563EB',
+                fillOpacity: 1,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 2.5,
+                scale: 2.2,
+              }}
+            />
+          )}
+
           {/* Visited Places 3D Pin Markers */}
           {displayVisited.map((place) => (
             <MarkerF
