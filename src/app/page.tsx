@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
-import { MOCK_USER, MOCK_TRIPS, MOCK_CHAPTERS, MOCK_VISITED_PLACES, MOCK_WISHLIST } from '@/lib/mockData';
+import React, { useState, useEffect } from 'react';
 import { Trip, TimelineChapter, VisitedPlace, WishlistItem, AIProcessedPhotoGroup } from '@/types';
 import { Navbar } from '@/components/Navbar';
 import { MapView } from '@/components/Dashboard/MapView';
@@ -9,20 +8,26 @@ import { TimelineView } from '@/components/Dashboard/TimelineView';
 import { PhotoUploader } from '@/components/Dashboard/PhotoUploader';
 import { WishlistDrawer } from '@/components/Dashboard/WishlistDrawer';
 import { AddVisitModal } from '@/components/Dashboard/AddVisitModal';
-import { Compass, MapPin, Calendar, Heart, Plus, Sparkles, Utensils, BookOpen, Share2, Layers } from 'lucide-react';
+import { CreateTripModal } from '@/components/Dashboard/CreateTripModal';
+import { AuthModal } from '@/components/Auth/AuthModal';
+import { subscribeToAuthChanges, logoutUser } from '@/lib/firebase/auth';
+import { User as FirebaseUser } from 'firebase/auth';
+import { Compass, MapPin, Calendar, Heart, Plus, Sparkles, Utensils, BookOpen, Share2, Layers, LogIn, UserPlus } from 'lucide-react';
 import { calculateHaversineDistance } from '@/lib/utils';
 
 export default function DashboardPage() {
-  const [trips] = useState<Trip[]>(MOCK_TRIPS);
-  const [activeTrip, setActiveTrip] = useState<Trip>(MOCK_TRIPS[0]);
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
 
-  // Chapters & Visited places for active trip
-  const [chaptersMap, setChaptersMap] = useState<Record<string, TimelineChapter[]>>(MOCK_CHAPTERS);
-  const [visitedPlacesMap, setVisitedPlacesMap] = useState<Record<string, VisitedPlace[]>>(MOCK_VISITED_PLACES);
-  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>(MOCK_WISHLIST);
+  // Trips & State initialized clean
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
 
-  const activeChapters = chaptersMap[activeTrip.id] || [];
-  const activeVisitedPlaces = visitedPlacesMap[activeTrip.id] || [];
+  const [chaptersMap, setChaptersMap] = useState<Record<string, TimelineChapter[]>>({});
+  const [visitedPlacesMap, setVisitedPlacesMap] = useState<Record<string, VisitedPlace[]>>({});
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
+
+  const activeChapters = activeTrip ? chaptersMap[activeTrip.id] || [] : [];
+  const activeVisitedPlaces = activeTrip ? visitedPlacesMap[activeTrip.id] || [] : [];
 
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [activeDayFilter, setActiveDayFilter] = useState<number | 'all'>('all');
@@ -31,17 +36,52 @@ export default function DashboardPage() {
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isPhotoUploaderOpen, setIsPhotoUploaderOpen] = useState(false);
   const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
+  const [isCreateTripModalOpen, setIsCreateTripModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [targetChapterId, setTargetChapterId] = useState<string | undefined>(undefined);
 
-  // Handle Trip switching
+  // Subscribe to auth changes
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthChanges((user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Handle creating a new trip
+  const handleCreateTrip = (newTrip: Trip) => {
+    const defaultChapter: TimelineChapter = {
+      id: `chap_${newTrip.id}_d1`,
+      tripId: newTrip.id,
+      dayNumber: 1,
+      date: newTrip.startDate,
+      title: 'Day 1: Culinary Discoveries',
+      notes: 'First day exploring local tasting spots and flavors.',
+    };
+
+    setTrips((prev) => [newTrip, ...prev]);
+    setActiveTrip(newTrip);
+    setChaptersMap((prev) => ({
+      ...prev,
+      [newTrip.id]: [defaultChapter],
+    }));
+    setVisitedPlacesMap((prev) => ({
+      ...prev,
+      [newTrip.id]: [],
+    }));
+  };
+
+  // Select active trip
   const handleSelectTrip = (trip: Trip) => {
     setActiveTrip(trip);
     setSelectedPlaceId(null);
     setActiveDayFilter('all');
   };
 
-  // Convert Wishlist item into a Visited Place with 1 click
+  // Convert Wishlist item into a Visited Place
   const handleConvertToVisited = (item: WishlistItem) => {
+    if (!activeTrip) return;
+
     const targetChapter = activeChapters[0] || {
       id: `chap_${activeTrip.id}_d1`,
       tripId: activeTrip.id,
@@ -70,13 +110,11 @@ export default function DashboardPage() {
       priceLevel: 2,
     };
 
-    // Add to visited places
     setVisitedPlacesMap((prev) => ({
       ...prev,
       [activeTrip.id]: [...(prev[activeTrip.id] || []), newVisitedPlace],
     }));
 
-    // Remove from wishlist
     setWishlistItems((prev) => prev.filter((w) => w.id !== item.id));
     setSelectedPlaceId(newVisitedPlace.id);
   };
@@ -85,11 +123,11 @@ export default function DashboardPage() {
   const handleAddWishlistItem = (item: Partial<WishlistItem>) => {
     const newItem: WishlistItem = {
       id: `wish_${Date.now()}`,
-      userId: MOCK_USER.id,
-      tripId: activeTrip.id,
+      userId: currentUser?.uid || 'user_active',
+      tripId: activeTrip?.id,
       placeId: item.placeId || `p_${Date.now()}`,
       name: item.name || 'Unnamed Spot',
-      address: item.address || 'Tokyo, Japan',
+      address: item.address || 'Dining Destination',
       lat: item.lat || 35.6875,
       lng: item.lng || 139.6972,
       notes: item.notes || '',
@@ -101,20 +139,17 @@ export default function DashboardPage() {
     setWishlistItems((prev) => [newItem, ...prev]);
   };
 
-  // Remove Wishlist item
-  const handleRemoveWishlistItem = (id: string) => {
-    setWishlistItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
   // Save manually added Visit
   const handleSaveVisit = (visit: Partial<VisitedPlace>) => {
+    if (!activeTrip) return;
+
     const newPlace: VisitedPlace = {
       id: `vp_${Date.now()}`,
       tripId: activeTrip.id,
       chapterId: visit.chapterId || activeChapters[0]?.id || 'chap_d1',
       placeId: visit.placeId || `p_${Date.now()}`,
       name: visit.name || 'Culinary Spot',
-      address: visit.address || 'Tokyo, Japan',
+      address: visit.address || 'Dining Destination',
       lat: visit.lat || 35.6875,
       lng: visit.lng || 139.6972,
       visitTime: visit.visitTime || new Date().toISOString(),
@@ -137,6 +172,7 @@ export default function DashboardPage() {
 
   // Delete Visit
   const handleDeletePlace = (placeId: string) => {
+    if (!activeTrip) return;
     setVisitedPlacesMap((prev) => ({
       ...prev,
       [activeTrip.id]: (prev[activeTrip.id] || []).filter((p) => p.id !== placeId),
@@ -145,6 +181,62 @@ export default function DashboardPage() {
 
   // Import AI Processed Chapters
   const handleImportAIChapters = (aiChapters: AIProcessedPhotoGroup[]) => {
+    if (!activeTrip) {
+      // Auto create a trip for imported photos
+      const autoTrip: Trip = {
+        id: `trip_${Date.now()}`,
+        userId: currentUser?.uid || 'user_active',
+        title: aiChapters[0]?.suggestedChapterTitle || 'New Food Journey',
+        slug: `food-journey-${Date.now()}`,
+        destination: 'Culinary Destination',
+        startDate: aiChapters[0]?.date || new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
+        coverUrl: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1200&q=80',
+        summary: 'AI Generated culinary travel log from photo import.',
+        visibility: 'public',
+        createdAt: new Date().toISOString(),
+      };
+      setTrips([autoTrip]);
+      setActiveTrip(autoTrip);
+      
+      const newChapters: TimelineChapter[] = [];
+      const newPlaces: VisitedPlace[] = [];
+
+      aiChapters.forEach((ac, idx) => {
+        const chapId = `chap_ai_${Date.now()}_${idx}`;
+        newChapters.push({
+          id: chapId,
+          tripId: autoTrip.id,
+          dayNumber: idx + 1,
+          date: ac.date,
+          title: ac.suggestedChapterTitle,
+        });
+
+        ac.places.forEach((p, pIdx) => {
+          newPlaces.push({
+            id: `vp_ai_${Date.now()}_${idx}_${pIdx}`,
+            tripId: autoTrip.id,
+            chapterId: chapId,
+            placeId: `place_ai_${Date.now()}_${pIdx}`,
+            name: p.suggestedVenueName,
+            address: 'Dining Spot',
+            lat: p.lat || 35.6875 + pIdx * 0.005,
+            lng: p.lng || 139.6972 + pIdx * 0.005,
+            visitTime: p.visitTime,
+            photoUrls: p.photoUrls,
+            dishTags: p.detectedDishes,
+            rating: p.suggestedRating,
+            tastingNotes: p.suggestedTastingNotes,
+            category: p.suggestedCategory,
+          });
+        });
+      });
+
+      setChaptersMap({ [autoTrip.id]: newChapters });
+      setVisitedPlacesMap({ [autoTrip.id]: newPlaces });
+      return;
+    }
+
     const newChapters: TimelineChapter[] = [];
     const newPlaces: VisitedPlace[] = [];
 
@@ -168,11 +260,11 @@ export default function DashboardPage() {
           chapterId: chapId,
           placeId: `place_ai_${Date.now()}_${pIdx}`,
           name: p.suggestedVenueName,
-          address: 'Tokyo, Japan',
+          address: 'Dining Spot',
           lat: p.lat || 35.6875 + pIdx * 0.005,
           lng: p.lng || 139.6972 + pIdx * 0.005,
           visitTime: p.visitTime,
-          photoUrls: p.photoUrls.length ? p.photoUrls : ['https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80'],
+          photoUrls: p.photoUrls,
           dishTags: p.detectedDishes,
           rating: p.suggestedRating,
           tastingNotes: p.suggestedTastingNotes,
@@ -193,7 +285,6 @@ export default function DashboardPage() {
     }));
   };
 
-  // Calculate total food trip distance
   const totalKmTraveled = activeVisitedPlaces.reduce((acc, curr, idx, arr) => {
     if (idx === 0) return 0;
     const prev = arr[idx - 1];
@@ -208,8 +299,12 @@ export default function DashboardPage() {
         trips={trips}
         activeTrip={activeTrip}
         onSelectTrip={handleSelectTrip}
+        onOpenCreateTrip={() => setIsCreateTripModalOpen(true)}
         onOpenWishlist={() => setIsWishlistOpen(true)}
         onOpenPhotoUploader={() => setIsPhotoUploaderOpen(true)}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        currentUser={currentUser}
+        onSignOut={() => logoutUser()}
         visitedCount={activeVisitedPlaces.length}
         wishlistCount={wishlistItems.length}
       />
@@ -217,114 +312,161 @@ export default function DashboardPage() {
       {/* Main Content Dashboard */}
       <main className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         
-        {/* Trip Hero Header Bar (Pine #025259 with Cream & Salmon accents) */}
-        <div className="relative rounded-3xl overflow-hidden border border-[#025259]/20 bg-[#025259] text-white shadow-xl p-6 sm:p-8">
-          <div className="absolute inset-0 opacity-20">
-            <img
-              src={activeTrip.coverUrl}
-              alt={activeTrip.title}
-              className="h-full w-full object-cover filter blur-sm scale-105"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#025259] via-[#025259]/90 to-transparent" />
-          </div>
-
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2 max-w-2xl">
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="rounded-full bg-[#ff947a] px-3 py-1 font-bold text-[#025259] shadow-sm">
-                  📍 {activeTrip.destination}
-                </span>
-                <span className="flex items-center gap-1.5 text-[#FDF8F0] bg-[#013b40]/80 px-3 py-1 rounded-full border border-[#03717b]">
-                  <Calendar className="h-3.5 w-3.5 text-[#E3A857]" />
-                  {activeTrip.startDate} — {activeTrip.endDate}
-                </span>
-              </div>
-
-              <h1 className="text-2xl sm:text-4xl font-serif font-bold text-white tracking-tight">
-                {activeTrip.title}
+        {/* Onboarding View if no trip exists */}
+        {!activeTrip ? (
+          <div className="rounded-3xl border border-[#025259]/20 bg-[#FFFFFF] p-8 sm:p-12 shadow-xl text-center space-y-6 max-w-3xl mx-auto my-8">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#ff947a] text-[#025259] shadow-md">
+              <Compass className="h-9 w-9 stroke-[2.5]" />
+            </div>
+            
+            <div className="space-y-2">
+              <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#025259]">
+                Welcome to ForkTrail
               </h1>
-
-              <p className="text-xs sm:text-sm text-[#FAF3E7] leading-relaxed">
-                {activeTrip.summary}
+              <p className="text-sm text-stone-600 max-w-md mx-auto leading-relaxed">
+                Your clean culinary travel diary. Start a new trip, import EXIF food photos, bookmark wishlist spots, and explore in 3D.
               </p>
             </div>
 
-            {/* Quick Metrics Bar */}
-            <div className="flex items-center gap-4 bg-[#013b40]/90 backdrop-blur border border-[#03717b] p-4 rounded-2xl shrink-0 text-center shadow-md">
-              <div>
-                <span className="block text-xl font-bold text-[#ff947a]">{activeVisitedPlaces.length}</span>
-                <span className="text-[10px] text-[#FAF3E7] uppercase tracking-wider font-semibold">Spots Logged</span>
-              </div>
-              <div className="h-8 w-[1px] bg-[#03717b]" />
-              <div>
-                <span className="block text-xl font-bold text-[#E3A857]">{wishlistItems.length}</span>
-                <span className="text-[10px] text-[#FAF3E7] uppercase tracking-wider font-semibold">Wishlist</span>
-              </div>
-              <div className="h-8 w-[1px] bg-[#03717b]" />
-              <div>
-                <span className="block text-xl font-bold text-white">{totalKmTraveled} km</span>
-                <span className="text-[10px] text-[#FAF3E7] uppercase tracking-wider font-semibold">Trail Route</span>
-              </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => setIsCreateTripModalOpen(true)}
+                className="flex items-center gap-2 rounded-xl bg-[#ff947a] px-6 py-3 text-sm font-bold text-[#025259] hover:bg-[#f08368] transition shadow-md"
+              >
+                <Plus className="h-5 w-5" />
+                Start Your First Food Trip
+              </button>
+
+              <button
+                onClick={() => setIsPhotoUploaderOpen(true)}
+                className="flex items-center gap-2 rounded-xl border border-[#025259]/20 bg-[#FAF3E7] px-5 py-3 text-sm font-bold text-[#025259] hover:bg-[#FDF8F0] transition shadow-sm"
+              >
+                <Sparkles className="h-4 w-4 text-[#ff947a]" />
+                Batch Import EXIF Photos
+              </button>
             </div>
-          </div>
-        </div>
 
-        {/* Dashboard Split View: Interactive Map (Left) + Daily Timeline (Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
-          {/* Left Column: Interactive Map Component */}
-          <div className="lg:col-span-6 h-[550px] lg:h-[750px] lg:sticky lg:top-20">
-            <MapView
-              visitedPlaces={activeVisitedPlaces}
-              wishlistItems={wishlistItems}
-              chapters={activeChapters}
-              selectedPlaceId={selectedPlaceId}
-              onSelectPlace={(place) => place && setSelectedPlaceId(place.id)}
-              onConvertToVisited={handleConvertToVisited}
-              activeDayFilter={activeDayFilter}
-              onSelectDayFilter={(day) => setActiveDayFilter(day)}
-            />
-          </div>
-
-          {/* Right Column: Timeline Chapters & Food Log */}
-          <div className="lg:col-span-6 space-y-6">
-            
-            <div className="flex items-center justify-between bg-[#FFFFFF] p-4 rounded-2xl border border-[#025259]/15 shadow-sm">
-              <div className="flex items-center gap-2">
-                <Layers className="h-5 w-5 text-[#ff947a]" />
-                <h2 className="font-serif font-bold text-lg text-[#025259]">Daily Food Diary</h2>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setTargetChapterId(undefined);
-                    setIsAddVisitModalOpen(true);
-                  }}
-                  className="flex items-center gap-1.5 rounded-lg bg-[#ff947a] border border-[#ff947a] px-3 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#f08368] transition shadow-sm"
-                >
-                  <Plus className="h-4 w-4" />
-                  Log Dining Visit
+            {!currentUser && (
+              <div className="pt-4 border-t border-[#025259]/10 text-xs text-stone-500 flex items-center justify-center gap-2">
+                <span>Have an account?</span>
+                <button onClick={() => setIsAuthModalOpen(true)} className="font-bold text-[#025259] underline">
+                  Sign In / Register
                 </button>
               </div>
+            )}
+          </div>
+        ) : (
+          /* Active Trip Hero Header Bar */
+          <div className="relative rounded-3xl overflow-hidden border border-[#025259]/20 bg-[#025259] text-white shadow-xl p-6 sm:p-8">
+            <div className="absolute inset-0 opacity-20">
+              <img
+                src={activeTrip.coverUrl}
+                alt={activeTrip.title}
+                className="h-full w-full object-cover filter blur-sm scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#025259] via-[#025259]/90 to-transparent" />
             </div>
 
-            {/* Timeline View Component */}
-            <TimelineView
-              chapters={activeChapters}
-              visitedPlaces={activeVisitedPlaces}
-              selectedPlaceId={selectedPlaceId}
-              onSelectPlace={(place) => setSelectedPlaceId(place.id)}
-              onOpenAddModal={(chapId) => {
-                setTargetChapterId(chapId);
-                setIsAddVisitModalOpen(true);
-              }}
-              onDeletePlace={handleDeletePlace}
-            />
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+              <div className="space-y-2 max-w-2xl">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="rounded-full bg-[#ff947a] px-3 py-1 font-bold text-[#025259] shadow-sm">
+                    📍 {activeTrip.destination}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[#FDF8F0] bg-[#013b40]/80 px-3 py-1 rounded-full border border-[#03717b]">
+                    <Calendar className="h-3.5 w-3.5 text-[#E3A857]" />
+                    {activeTrip.startDate} — {activeTrip.endDate}
+                  </span>
+                </div>
+
+                <h1 className="text-2xl sm:text-4xl font-serif font-bold text-white tracking-tight">
+                  {activeTrip.title}
+                </h1>
+
+                <p className="text-xs sm:text-sm text-[#FAF3E7] leading-relaxed">
+                  {activeTrip.summary}
+                </p>
+              </div>
+
+              {/* Quick Metrics Bar */}
+              <div className="flex items-center gap-4 bg-[#013b40]/90 backdrop-blur border border-[#03717b] p-4 rounded-2xl shrink-0 text-center shadow-md">
+                <div>
+                  <span className="block text-xl font-bold text-[#ff947a]">{activeVisitedPlaces.length}</span>
+                  <span className="text-[10px] text-[#FAF3E7] uppercase tracking-wider font-semibold">Spots Logged</span>
+                </div>
+                <div className="h-8 w-[1px] bg-[#03717b]" />
+                <div>
+                  <span className="block text-xl font-bold text-[#E3A857]">{wishlistItems.length}</span>
+                  <span className="text-[10px] text-[#FAF3E7] uppercase tracking-wider font-semibold">Wishlist</span>
+                </div>
+                <div className="h-8 w-[1px] bg-[#03717b]" />
+                <div>
+                  <span className="block text-xl font-bold text-white">{totalKmTraveled} km</span>
+                  <span className="text-[10px] text-[#FAF3E7] uppercase tracking-wider font-semibold">Trail Route</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dashboard Split View: Interactive Map (Left) + Daily Timeline (Right) */}
+        {activeTrip && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            {/* Left Column: Interactive Map Component */}
+            <div className="lg:col-span-6 h-[550px] lg:h-[750px] lg:sticky lg:top-20">
+              <MapView
+                visitedPlaces={activeVisitedPlaces}
+                wishlistItems={wishlistItems}
+                chapters={activeChapters}
+                selectedPlaceId={selectedPlaceId}
+                onSelectPlace={(place) => place && setSelectedPlaceId(place.id)}
+                onConvertToVisited={handleConvertToVisited}
+                activeDayFilter={activeDayFilter}
+                onSelectDayFilter={(day) => setActiveDayFilter(day)}
+              />
+            </div>
+
+            {/* Right Column: Timeline Chapters & Food Log */}
+            <div className="lg:col-span-6 space-y-6">
+              
+              <div className="flex items-center justify-between bg-[#FFFFFF] p-4 rounded-2xl border border-[#025259]/15 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-5 w-5 text-[#ff947a]" />
+                  <h2 className="font-serif font-bold text-lg text-[#025259]">Daily Food Diary</h2>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setTargetChapterId(undefined);
+                      setIsAddVisitModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 rounded-lg bg-[#ff947a] border border-[#ff947a] px-3 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#f08368] transition shadow-sm"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Log Dining Visit
+                  </button>
+                </div>
+              </div>
+
+              {/* Timeline View Component */}
+              <TimelineView
+                chapters={activeChapters}
+                visitedPlaces={activeVisitedPlaces}
+                selectedPlaceId={selectedPlaceId}
+                onSelectPlace={(place) => setSelectedPlaceId(place.id)}
+                onOpenAddModal={(chapId) => {
+                  setTargetChapterId(chapId);
+                  setIsAddVisitModalOpen(true);
+                }}
+                onDeletePlace={handleDeletePlace}
+              />
+
+            </div>
 
           </div>
-
-        </div>
+        )}
 
       </main>
 
@@ -335,7 +477,7 @@ export default function DashboardPage() {
         wishlistItems={wishlistItems}
         onAddWishlistItem={handleAddWishlistItem}
         onConvertToVisited={handleConvertToVisited}
-        onRemoveWishlistItem={handleRemoveWishlistItem}
+        onRemoveWishlistItem={(id) => setWishlistItems((prev) => prev.filter((item) => item.id !== id))}
       />
 
       <PhotoUploader
@@ -350,6 +492,18 @@ export default function DashboardPage() {
         chapters={activeChapters}
         defaultChapterId={targetChapterId}
         onSaveVisit={handleSaveVisit}
+      />
+
+      <CreateTripModal
+        isOpen={isCreateTripModalOpen}
+        onClose={() => setIsCreateTripModalOpen(false)}
+        onCreateTrip={handleCreateTrip}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={(user) => setCurrentUser(user)}
       />
 
       {/* Footer */}
