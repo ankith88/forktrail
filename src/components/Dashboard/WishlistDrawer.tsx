@@ -140,13 +140,20 @@ export function WishlistDrawer({
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {searchResults.map((place) => (
                     <div key={place.placeId} className="bg-[#FFFFFF] border border-[#025259]/15 p-3 rounded-xl flex items-center justify-between text-xs shadow-sm">
-                      <div>
-                        <p className="font-semibold text-[#025259]">{place.name}</p>
-                        <p className="text-[11px] text-stone-500 truncate max-w-[200px]">{place.address}</p>
+                      <div className="min-w-0 pr-2">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <p className="font-semibold text-[#025259] truncate">{place.name}</p>
+                          {(place.cuisine || place.category) && (
+                            <span className="shrink-0 rounded-full bg-[#025259]/10 px-2 py-0.5 text-[9px] font-bold text-[#025259]">
+                              {place.cuisine || place.category}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-stone-500 truncate max-w-[220px]">{place.address}</p>
                       </div>
                       <button
                         onClick={() => setSelectedPlaceForWishlist(place)}
-                        className="flex items-center gap-1 rounded-lg bg-[#ff947a] text-[#025259] px-2.5 py-1 text-[11px] font-bold hover:bg-[#f08368] transition shadow-sm"
+                        className="shrink-0 flex items-center gap-1 rounded-lg bg-[#ff947a] text-[#025259] px-2.5 py-1 text-[11px] font-bold hover:bg-[#f08368] transition shadow-sm"
                       >
                         <Plus className="h-3 w-3" /> Save
                       </button>

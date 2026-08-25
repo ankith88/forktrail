@@ -40,14 +40,17 @@ export function Navbar({
 }: NavbarProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
+  const hometownLogs = trips.filter((t) => t.categoryType === 'hometown_log' || t.isHometown);
+  const travelTrips = trips.filter((t) => t.categoryType !== 'hometown_log' && !t.isHometown);
+
   return (
     <header className="sticky top-0 z-40 w-full border-b border-[#013b40] bg-[#025259] text-white shadow-md font-sans">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
         
-        {/* Brand Logo */}
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-[#FAF3E7] p-1 shadow-md transition-transform group-hover:scale-105">
+        {/* Brand Logo & Log Selector */}
+        <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
+          <Link href="/" className="flex items-center gap-2 group shrink-0">
+            <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-[#FAF3E7] p-1 shadow-md transition-transform group-hover:scale-105">
               <Image
                 src="/logo-mark.png"
                 alt="ForkTrail Mark"
@@ -57,19 +60,19 @@ export function Navbar({
                 priority
               />
             </div>
-            <div>
-              <span className="font-serif text-xl font-bold tracking-tight text-white block leading-tight">
+            <div className="hidden min-[380px]:block">
+              <span className="font-serif text-lg sm:text-xl font-bold tracking-tight text-white block leading-tight">
                 Fork<span className="text-[#ff947a]">Trail</span>
               </span>
-              <span className="block text-[10px] uppercase tracking-widest text-[#E3A857] font-sans font-semibold">
-                Your Culinary Journey
+              <span className="block text-[9px] sm:text-[10px] uppercase tracking-widest text-[#E3A857] font-sans font-semibold">
+                Culinary Log
               </span>
             </div>
           </Link>
 
-          {/* Active Trip Selector Dropdown */}
+          {/* Active Log / Journal Selector Dropdown */}
           {currentUser && (
-            <div className="hidden md:flex items-center gap-2 ml-4 pl-4 border-l border-[#03717b]">
+            <div className="flex items-center gap-1.5 ml-1 sm:ml-3 pl-1.5 sm:pl-3 border-l border-[#03717b] max-w-[170px] min-[400px]:max-w-[220px] sm:max-w-xs">
               {trips.length > 0 && activeTrip ? (
                 <select
                   id="trip-selector"
@@ -78,23 +81,37 @@ export function Navbar({
                     const found = trips.find((t) => t.id === e.target.value);
                     if (found) onSelectTrip(found);
                   }}
-                  className="rounded-lg border border-[#03717b] bg-[#013b40] px-3 py-1.5 text-xs font-medium text-white focus:border-[#ff947a] focus:outline-none transition"
+                  className="w-full truncate rounded-lg border border-[#03717b] bg-[#013b40] px-2 py-1.5 text-xs font-medium text-white focus:border-[#ff947a] focus:outline-none transition"
+                  aria-label="Select Food Log"
                 >
-                  {trips.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      ✈️ {t.title} ({t.destination})
-                    </option>
-                  ))}
+                  {hometownLogs.length > 0 && (
+                    <optgroup label="🏠 Hometown Journals">
+                      {hometownLogs.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          🏠 {t.title} ({t.destination})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {travelTrips.length > 0 && (
+                    <optgroup label="✈️ Travel Trips">
+                      {travelTrips.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          ✈️ {t.title} ({t.destination})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               ) : null}
 
               <button
                 onClick={onOpenCreateTrip}
-                className="flex items-center gap-1 rounded-lg border border-[#ff947a]/40 bg-[#ff947a]/20 px-2.5 py-1.5 text-xs font-bold text-[#FAF3E7] hover:bg-[#ff947a] hover:text-[#025259] transition"
-                title="Create New Trip"
+                className="shrink-0 flex items-center gap-1 rounded-lg border border-[#ff947a]/40 bg-[#ff947a]/20 px-2 py-1.5 text-xs font-bold text-[#FAF3E7] hover:bg-[#ff947a] hover:text-[#025259] transition"
+                title="Create New Food Log or Trip"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span>New Trip</span>
+                <span className="hidden sm:inline">New Log</span>
               </button>
             </div>
           )}
@@ -102,18 +119,18 @@ export function Navbar({
 
         {/* Center Navigation Links & Right Action Buttons */}
         {!currentUser ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={onOpenAuth}
-              className="flex items-center gap-2 rounded-xl bg-[#ff947a] px-4 py-2 text-xs font-bold text-[#025259] hover:bg-[#f08368] transition shadow-md"
+              className="flex items-center gap-2 rounded-xl bg-[#ff947a] px-3.5 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#f08368] transition shadow-md"
             >
               <LogIn className="h-4 w-4" />
               <span>Sign In / Register</span>
             </button>
           </div>
         ) : (
-          <>
-            {/* Center Navigation Links */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Center Navigation Links (Desktop) */}
             <div className="hidden lg:flex items-center gap-2 bg-[#013b40]/70 py-1.5 px-3 rounded-full border border-[#03717b]">
               <Link
                 href="/map"
@@ -158,16 +175,16 @@ export function Navbar({
             </div>
 
             {/* Right Action Buttons */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               {/* Wishlist Drawer Button */}
               <button
                 onClick={onOpenWishlist}
-                className="relative flex items-center gap-2 rounded-lg border border-[#03717b] bg-[#013b40] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#03717b] transition shadow-sm"
+                className="relative flex items-center gap-1.5 rounded-lg border border-[#03717b] bg-[#013b40] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#03717b] transition shadow-sm"
               >
                 <Heart className="h-4 w-4 text-[#ff947a] fill-[#ff947a]/20" />
                 <span className="hidden sm:inline">Wishlist</span>
                 {wishlistCount > 0 && (
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#ff947a] text-[10px] font-bold text-[#025259] shadow">
+                  <span className="flex h-4 sm:h-5 w-4 sm:w-5 items-center justify-center rounded-full bg-[#ff947a] text-[10px] font-bold text-[#025259] shadow">
                     {wishlistCount}
                   </span>
                 )}
@@ -176,7 +193,7 @@ export function Navbar({
               {/* AI Photo Uploader Button */}
               <button
                 onClick={onOpenPhotoUploader}
-                className="flex items-center gap-2 rounded-lg bg-[#ff947a] px-3.5 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#f08368] shadow-md transition-all hover:scale-102"
+                className="flex items-center gap-1.5 rounded-lg bg-[#ff947a] px-2.5 sm:px-3.5 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#f08368] shadow-md transition-all hover:scale-102"
               >
                 <Sparkles className="h-4 w-4 text-[#025259]" />
                 <span className="hidden sm:inline">AI Import</span>
@@ -186,7 +203,7 @@ export function Navbar({
               <div className="relative">
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center gap-2 rounded-xl border border-[#03717b] bg-[#013b40] p-1.5 hover:border-[#ff947a] transition"
+                  className="flex items-center gap-2 rounded-xl border border-[#03717b] bg-[#013b40] p-1 sm:p-1.5 hover:border-[#ff947a] transition"
                 >
                   {currentUser.photoURL ? (
                     <img src={currentUser.photoURL} alt={currentUser.displayName || 'User'} className="h-7 w-7 rounded-lg object-cover" />
@@ -198,7 +215,7 @@ export function Navbar({
                 </button>
 
                 {isUserMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-xl border border-[#03717b] bg-[#013b40] p-2 shadow-2xl space-y-1 text-xs">
+                  <div className="absolute right-0 mt-2 w-48 rounded-xl border border-[#03717b] bg-[#013b40] p-2 shadow-2xl space-y-1 text-xs z-50">
                     <div className="p-2 border-b border-[#03717b]">
                       <p className="font-bold text-white truncate">{currentUser.displayName || 'Food Explorer'}</p>
                       <p className="text-[10px] text-stone-300 truncate">{currentUser.email}</p>
@@ -216,7 +233,7 @@ export function Navbar({
                 )}
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </header>

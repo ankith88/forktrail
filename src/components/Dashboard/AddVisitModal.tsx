@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { VisitedPlace, TimelineChapter } from '@/types';
+import { VisitedPlace, TimelineChapter, Trip } from '@/types';
 import { getLocalDateString } from '@/lib/utils';
-import { X, MapPin, Star, Utensils, Tag, Calendar, Navigation, Loader2 } from 'lucide-react';
+import { X, MapPin, Star, Utensils, Tag, Calendar, Navigation, Loader2, Sparkles, Check, BookOpen } from 'lucide-react';
 import { VoiceNoteRecorder } from '@/components/ai/VoiceNoteRecorder';
 import { VoiceNoteAnalysis } from '@/types';
+import { GoogleRestaurantDropdown, GooglePlaceResult } from './GoogleRestaurantDropdown';
 
 interface AddVisitModalProps {
   isOpen: boolean;
@@ -13,6 +14,10 @@ interface AddVisitModalProps {
   chapters: TimelineChapter[];
   defaultChapterId?: string;
   onSaveVisit: (visit: Partial<VisitedPlace>) => void;
+  trips?: Trip[];
+  activeTrip?: Trip | null;
+  onSelectTrip?: (trip: Trip) => void;
+  isHometown?: boolean;
 }
 
 export function AddVisitModal({
@@ -21,6 +26,10 @@ export function AddVisitModal({
   chapters,
   defaultChapterId,
   onSaveVisit,
+  trips = [],
+  activeTrip = null,
+  onSelectTrip,
+  isHometown = false,
 }: AddVisitModalProps) {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -30,8 +39,26 @@ export function AddVisitModal({
   const [recommendedDish, setRecommendedDish] = useState('');
   const [tastingNotes, setTastingNotes] = useState('');
   const [dishTagsStr, setDishTagsStr] = useState('');
+  const [selectedTripId, setSelectedTripId] = useState<string>(activeTrip?.id || (trips.length > 0 ? trips[0].id : ''));
   const [chapterId, setChapterId] = useState(defaultChapterId || chapters[0]?.id || '');
   const [photoUrl, setPhotoUrl] = useState('');
+  const [isAutopopulated, setIsAutopopulated] = useState(false);
+  const [selectedPlaceId, setSelectedPlaceId] = useState('');
+
+  // Keep selectedTripId in sync with activeTrip
+  useEffect(() => {
+    if (activeTrip) {
+      setSelectedTripId(activeTrip.id);
+    }
+  }, [activeTrip]);
+
+  const currentTrip = trips.find((t) => t.id === selectedTripId) || activeTrip;
+  const isHometownLog =
+    isHometown ||
+    currentTrip?.categoryType === 'hometown_log' ||
+    currentTrip?.isHometown ||
+    chapters.length === 0 ||
+    chapters[0]?.id?.includes('hometown');
 
   // Date Visited - Defaults to current local date of user location
   const [visitDate, setVisitDate] = useState(() => getLocalDateString());
@@ -70,6 +97,41 @@ export function AddVisitModal({
     }
   }, [isOpen]);
 
+  const handleSelectGooglePlace = (place: GooglePlaceResult) => {
+    setName(place.name);
+    setAddress(place.address || '');
+    const detectedCuisine = place.cuisine || place.category || 'Restaurant';
+    setCategory(detectedCuisine);
+
+    if (place.lat !== null && place.lng !== null) {
+      setLat(place.lat);
+      setLng(place.lng);
+      setLocationStatus(`Google Map: ${place.lat.toFixed(4)}°, ${place.lng.toFixed(4)}°`);
+    }
+
+    if (place.rating) {
+      setRating(Math.max(1, Math.min(5, Math.round(place.rating))));
+    }
+
+    if (place.priceLevel) {
+      setPriceLevel(Math.max(1, Math.min(4, place.priceLevel)));
+    }
+
+    if (place.photoUrl) {
+      setPhotoUrl(place.photoUrl);
+    }
+
+    if (place.placeId) {
+      setSelectedPlaceId(place.placeId);
+    }
+
+    setIsAutopopulated(true);
+  };
+
+  const handleClearAutopopulated = () => {
+    setIsAutopopulated(false);
+  };
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -78,7 +140,7 @@ export function AddVisitModal({
 
     const dishTags = dishTagsStr
       .split(',')
-      .map(t => t.trim())
+      .map((t) => t.trim())
       .filter(Boolean);
 
     // Build ISO timestamp from user selected date
@@ -88,7 +150,11 @@ export function AddVisitModal({
       : selectedDateObj.toISOString();
 
     onSaveVisit({
-      chapterId: chapterId || (chapters.length > 0 ? chapters[0].id : 'chap_hometown'),
+      tripId: currentTrip?.id,
+      chapterId: isHometownLog
+        ? defaultChapterId || chapters[0]?.id || `chap_${currentTrip?.id || 'hometown'}_local`
+        : chapterId || (chapters.length > 0 ? chapters[0].id : 'chap_hometown'),
+      placeId: selectedPlaceId || `place_${Date.now()}`,
       name,
       address: address || 'Local Dining Spot',
       category,
@@ -100,7 +166,7 @@ export function AddVisitModal({
       visitTime: visitTimeIso,
       lat: lat !== null ? lat : 37.7749 + (Math.random() - 0.5) * 0.05,
       lng: lng !== null ? lng : -122.4194 + (Math.random() - 0.5) * 0.05,
-      isHometown: chapters.length === 0 || chapters[0]?.id?.includes('hometown'),
+      isHometown: isHometownLog,
       photoUrls: photoUrl
         ? [photoUrl]
         : ['https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80'],
@@ -109,43 +175,138 @@ export function AddVisitModal({
     onClose();
   };
 
+  const standardCategories = [
+    'Ramen',
+    'Sushi',
+    'Izakaya',
+    'Café',
+    'Bakery',
+    'Fine Dining',
+    'Street Food',
+    'Yakiniku',
+    'Italian',
+    'French',
+    'Chinese',
+    'Mexican',
+    'Indian',
+    'Thai',
+    'Korean',
+    'Vietnamese',
+    'Seafood',
+    'Steakhouse',
+    'Spanish',
+    'Bistro',
+    'Cocktail Bar',
+    'Bar',
+    'Pub',
+    'Restaurant',
+  ];
+  const allCategoryOptions = Array.from(new Set([category, ...standardCategories]));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="relative w-full max-w-lg rounded-2xl border border-[#025259]/20 bg-[#FFFFFF] p-6 shadow-2xl space-y-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto font-sans">
+      <div className="relative w-full max-w-lg rounded-2xl border border-[#025259]/20 bg-[#FFFFFF] p-6 shadow-2xl space-y-5 text-[#025259]">
         
         <div className="flex items-center justify-between border-b border-[#025259]/15 pb-3">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ff947a] text-[#025259]">
               <Utensils className="h-5 w-5" />
             </div>
-            <h2 className="text-base font-bold text-[#025259]">Log New Culinary Visit</h2>
+            <div>
+              <h2 className="text-base font-bold text-[#025259]">Log New Culinary Visit</h2>
+              <p className="text-[10px] font-semibold text-stone-500">
+                {isHometownLog ? '🏠 Hometown Log Visit' : '✈️ Travel Trip Spot'}
+              </p>
+            </div>
           </div>
           <button onClick={onClose} className="text-stone-400 hover:text-[#025259]">
             <X className="h-5 w-5" />
           </button>
         </div>
 
+        {isAutopopulated && (
+          <div className="flex items-center justify-between rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 text-xs text-emerald-800 shadow-sm animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] font-bold">
+                ✓
+              </span>
+              <span className="font-semibold">
+                Auto-populated from Google Places (Address, Cuisine, Rating & Location loaded)
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleClearAutopopulated}
+              className="text-[11px] underline font-medium text-emerald-700 hover:text-emerald-900"
+            >
+              Reset
+            </button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           
-          {/* Chapter Selector & Date Visited */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Target Log Selector (If user has multiple logs) */}
+          {trips.length > 0 && (
             <div>
-              <label htmlFor="modal-chapter-select" className="block text-[#025259] font-bold mb-1">Timeline Day / Chapter</label>
+              <label htmlFor="modal-target-trip" className="block text-[#025259] font-bold mb-1 flex items-center gap-1.5">
+                <BookOpen className="h-3.5 w-3.5 text-[#ff947a]" /> Target Food Log / Journal
+              </label>
               <select
-                id="modal-chapter-select"
-                value={chapterId}
-                onChange={(e) => setChapterId(e.target.value)}
-                className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] font-medium"
+                id="modal-target-trip"
+                value={selectedTripId}
+                onChange={(e) => {
+                  const found = trips.find((t) => t.id === e.target.value);
+                  if (found) {
+                    setSelectedTripId(found.id);
+                    if (onSelectTrip) onSelectTrip(found);
+                  }
+                }}
+                className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] font-medium focus:border-[#ff947a] focus:outline-none"
               >
-                {chapters.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    Day {c.dayNumber}: {c.title}
+                {trips.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.categoryType === 'hometown_log' || t.isHometown ? '🏠 Hometown Log:' : '✈️ Travel Trip:'} {t.title} ({t.destination})
                   </option>
                 ))}
               </select>
             </div>
+          )}
 
+          {/* Date Visited & Timeline Chapter (Day/Chapter is hidden for Hometown Logs!) */}
+          {!isHometownLog ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="modal-chapter-select" className="block text-[#025259] font-bold mb-1">Timeline Day / Chapter</label>
+                <select
+                  id="modal-chapter-select"
+                  value={chapterId}
+                  onChange={(e) => setChapterId(e.target.value)}
+                  className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] font-medium"
+                >
+                  {chapters.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      Day {c.dayNumber}: {c.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="modal-visit-date" className="block text-[#025259] font-bold mb-1 flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5 text-[#ff947a]" /> Date Visited
+                </label>
+                <input
+                  id="modal-visit-date"
+                  type="date"
+                  required
+                  value={visitDate}
+                  onChange={(e) => setVisitDate(e.target.value)}
+                  className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] font-medium focus:border-[#ff947a] focus:outline-none"
+                />
+              </div>
+            </div>
+          ) : (
             <div>
               <label htmlFor="modal-visit-date" className="block text-[#025259] font-bold mb-1 flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5 text-[#ff947a]" /> Date Visited
@@ -159,7 +320,7 @@ export function AddVisitModal({
                 className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] font-medium focus:border-[#ff947a] focus:outline-none"
               />
             </div>
-          </div>
+          )}
 
           {/* User Geolocation Card */}
           <div className="rounded-xl border border-[#025259]/15 bg-[#FDF8F0] p-3 text-xs flex items-center justify-between gap-2">
@@ -192,37 +353,39 @@ export function AddVisitModal({
             </button>
           </div>
 
-
-          {/* Venue Name & Address */}
+          {/* Venue Name (Google Dropdown) & Category */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label htmlFor="modal-venue-name" className="block text-[#025259] font-bold mb-1">Venue / Restaurant Name</label>
-              <input
+              <label htmlFor="modal-venue-name" className="block text-[#025259] font-bold mb-1 flex items-center justify-between">
+                <span>Venue / Restaurant Name</span>
+                <span className="text-[10px] text-[#ff947a] font-normal flex items-center gap-0.5">
+                  <Sparkles className="h-2.5 w-2.5" /> Google Dropdown
+                </span>
+              </label>
+              <GoogleRestaurantDropdown
                 id="modal-venue-name"
-                type="text"
                 required
-                placeholder="e.g. Fuunji Ramen"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] placeholder-stone-400 focus:border-[#ff947a] focus:outline-none"
+                onChange={(val) => setName(val)}
+                onSelectPlace={handleSelectGooglePlace}
+                isAutopopulated={isAutopopulated}
+                onClearAutopopulated={handleClearAutopopulated}
+                placeholder="Search venue on Google..."
               />
             </div>
             <div>
-              <label htmlFor="modal-category" className="block text-[#025259] font-bold mb-1">Category</label>
+              <label htmlFor="modal-category" className="block text-[#025259] font-bold mb-1">Cuisine / Category</label>
               <select
                 id="modal-category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] font-medium"
               >
-                <option value="Ramen">Ramen</option>
-                <option value="Sushi">Sushi</option>
-                <option value="Izakaya">Izakaya</option>
-                <option value="Café">Café</option>
-                <option value="Bakery">Bakery</option>
-                <option value="Fine Dining">Fine Dining</option>
-                <option value="Street Food">Street Food</option>
-                <option value="Yakiniku">Yakiniku</option>
+                {allCategoryOptions.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -257,11 +420,11 @@ export function AddVisitModal({
               </select>
             </div>
             <div>
-              <label htmlFor="modal-recommended-dish" className="block text-[#025259] font-bold mb-1">Must Order Dish</label>
+              <label htmlFor="modal-recommended-dish" className="block text-[#025259] font-bold mb-1">Must Order Dish / Drink</label>
               <input
                 id="modal-recommended-dish"
                 type="text"
-                placeholder="e.g. Special Tsukemen"
+                placeholder="e.g. Special Tsukemen or Espresso Tonic"
                 value={recommendedDish}
                 onChange={(e) => setRecommendedDish(e.target.value)}
                 className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] placeholder-stone-400 focus:border-[#ff947a] focus:outline-none"
@@ -286,7 +449,7 @@ export function AddVisitModal({
             <textarea
               id="modal-tasting-notes"
               rows={3}
-              placeholder="Rich poultry-fish broth, firm chewy noodles, melt-in-mouth chashu..."
+              placeholder="Rich poultry-fish broth, firm chewy noodles, cozy neighborhood vibe..."
               value={tastingNotes}
               onChange={(e) => setTastingNotes(e.target.value)}
               className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] placeholder-stone-400 focus:border-[#ff947a] focus:outline-none"
@@ -300,7 +463,7 @@ export function AddVisitModal({
               <input
                 id="modal-dish-tags"
                 type="text"
-                placeholder="Tsukemen, Ajitama, Chashu"
+                placeholder="Coffee, Cold Brew, V60"
                 value={dishTagsStr}
                 onChange={(e) => setDishTagsStr(e.target.value)}
                 className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] placeholder-stone-400 focus:border-[#ff947a] focus:outline-none"
@@ -331,7 +494,7 @@ export function AddVisitModal({
               type="submit"
               className="rounded-xl bg-[#ff947a] px-5 py-2 font-bold text-[#025259] hover:bg-[#f08368] transition shadow-md"
             >
-              Save Visit to Timeline
+              Save Visit to Log
             </button>
           </div>
 

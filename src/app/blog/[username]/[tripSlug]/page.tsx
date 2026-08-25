@@ -278,7 +278,7 @@ export default async function PublicBlogPage({ params }: BlogPageProps) {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-[#013b40] bg-[#025259] py-12 text-center text-xs text-[#FAF3E7] space-y-3">
+      <footer className="hidden md:block border-t border-[#013b40] bg-[#025259] py-12 text-center text-xs text-[#FAF3E7] space-y-3">
         <div className="flex justify-center items-center gap-3">
           <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-[#FAF3E7] p-1 shadow-sm">
             <Image src="/logo-mark.png" alt="ForkTrail Logo" width={28} height={28} className="h-full w-full object-contain" />

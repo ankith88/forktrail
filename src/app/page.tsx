@@ -20,6 +20,15 @@ import { ItineraryPlanner } from '@/components/ai/ItineraryPlanner';
 import { VisualDishFinder } from '@/components/ai/VisualDishFinder';
 import { SocialCaptionModal } from '@/components/ai/SocialCaptionModal';
 import { subscribeToAuthChanges, logoutUser } from '@/lib/firebase/auth';
+import {
+  fetchUserDataFromFirestore,
+  saveTripToFirestore,
+  saveChapterToFirestore,
+  saveVisitedPlaceToFirestore,
+  deleteVisitedPlaceFromFirestore,
+  saveWishlistItemToFirestore,
+  deleteWishlistItemFromFirestore,
+} from '@/lib/firebase/firestoreData';
 import { User as FirebaseUser } from 'firebase/auth';
 import { Compass, MapPin, Calendar, Heart, Plus, Sparkles, Utensils, BookOpen, Share2, Layers, LogIn, UserPlus, Film } from 'lucide-react';
 import { calculateHaversineDistance } from '@/lib/utils';
@@ -93,6 +102,10 @@ export default function DashboardPage() {
       ...prev,
       [activeTrip.id]: newChapters,
     }));
+
+    if (currentUser?.uid) {
+      newChapters.forEach((c) => saveChapterToFirestore(currentUser.uid, c));
+    }
   };
 
   const handleStartTripClick = () => {
@@ -139,7 +152,6 @@ export default function DashboardPage() {
     }
   };
 
-
   // Subscribe to auth changes
   useEffect(() => {
     const unsubscribe = subscribeToAuthChanges((user) => {
@@ -147,6 +159,39 @@ export default function DashboardPage() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Sync user data with Firestore when authenticated
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+
+    fetchUserDataFromFirestore(currentUser.uid).then((fsData) => {
+      if (fsData.trips.length > 0) {
+        setTrips(fsData.trips);
+        setActiveTrip((prev) => {
+          const found = fsData.trips.find((t) => t.id === prev?.id);
+          return found || fsData.trips[0];
+        });
+        setVisitedPlacesMap(fsData.visitedPlacesMap);
+        setChaptersMap(fsData.chaptersMap);
+        setWishlistItems(fsData.wishlistItems);
+
+        saveStoredTrips(fsData.trips);
+        saveStoredVisitedPlaces(fsData.visitedPlacesMap);
+        saveStoredChapters(fsData.chaptersMap);
+        saveStoredWishlist(fsData.wishlistItems);
+      } else {
+        // Upload local data to Firestore if user doesn't have remote data yet
+        trips.forEach((t) => saveTripToFirestore(currentUser.uid, t));
+        Object.values(chaptersMap)
+          .flat()
+          .forEach((c) => saveChapterToFirestore(currentUser.uid, c));
+        Object.values(visitedPlacesMap)
+          .flat()
+          .forEach((vp) => saveVisitedPlaceToFirestore(currentUser.uid, vp));
+        wishlistItems.forEach((w) => saveWishlistItemToFirestore(currentUser.uid, w));
+      }
+    });
+  }, [currentUser]);
 
   // Load stored user data on mount
   useEffect(() => {
@@ -188,7 +233,7 @@ export default function DashboardPage() {
 
   // Handle creating a new trip or hometown food journal
   const handleCreateTrip = (newTrip: Trip) => {
-    const isHometown = newTrip.categoryType === 'hometown_log';
+    const isHometown = newTrip.categoryType === 'hometown_log' || newTrip.isHometown;
     const defaultChapter: TimelineChapter = {
       id: `chap_${newTrip.id}_d1`,
       tripId: newTrip.id,
@@ -208,6 +253,11 @@ export default function DashboardPage() {
       ...prev,
       [newTrip.id]: [],
     }));
+
+    if (currentUser?.uid) {
+      saveTripToFirestore(currentUser.uid, newTrip);
+      saveChapterToFirestore(currentUser.uid, defaultChapter);
+    }
   };
 
   // Select active trip
@@ -247,7 +297,7 @@ export default function DashboardPage() {
       tastingNotes: item.notes || `Converted from Wishlist bookmark!`,
       category: item.category,
       priceLevel: 2,
-      isHometown: activeTrip.categoryType === 'hometown_log',
+      isHometown: activeTrip.categoryType === 'hometown_log' || activeTrip.isHometown,
     };
 
     setVisitedPlacesMap((prev) => ({
@@ -257,6 +307,11 @@ export default function DashboardPage() {
 
     setWishlistItems((prev) => prev.filter((w) => w.id !== item.id));
     setSelectedPlaceId(newVisitedPlace.id);
+
+    if (currentUser?.uid) {
+      saveVisitedPlaceToFirestore(currentUser.uid, newVisitedPlace);
+      deleteWishlistItemFromFirestore(item.id);
+    }
   };
 
   // Add Wishlist item
@@ -277,16 +332,23 @@ export default function DashboardPage() {
       photoUrl: item.photoUrl,
     };
     setWishlistItems((prev) => [newItem, ...prev]);
+
+    if (currentUser?.uid) {
+      saveWishlistItemToFirestore(currentUser.uid, newItem);
+    }
   };
 
   // Remove Wishlist item
   const handleRemoveWishlistItem = (id: string) => {
     setWishlistItems((prev) => prev.filter((w) => w.id !== id));
+    if (currentUser?.uid) {
+      deleteWishlistItemFromFirestore(id);
+    }
   };
 
   // Save manually added Visit (Auto-creates Hometown Journal if no trip is selected)
   const handleSaveVisit = (visit: Partial<VisitedPlace>) => {
-    let currentTrip = activeTrip;
+    let currentTrip = trips.find((t) => t.id === visit.tripId) || activeTrip;
     let targetChapterId = visit.chapterId;
 
     if (!currentTrip) {
@@ -324,6 +386,11 @@ export default function DashboardPage() {
       }));
 
       targetChapterId = defaultChapter.id;
+
+      if (currentUser?.uid) {
+        saveTripToFirestore(currentUser.uid, currentTrip);
+        saveChapterToFirestore(currentUser.uid, defaultChapter);
+      }
     }
 
     const newPlace: VisitedPlace = {
@@ -343,7 +410,7 @@ export default function DashboardPage() {
       priceLevel: visit.priceLevel || 2,
       category: visit.category || 'Ramen',
       recommendedDish: visit.recommendedDish,
-      isHometown: visit.isHometown || currentTrip.categoryType === 'hometown_log',
+      isHometown: visit.isHometown || currentTrip.categoryType === 'hometown_log' || currentTrip.isHometown,
     };
 
     setVisitedPlacesMap((prev) => ({
@@ -351,7 +418,13 @@ export default function DashboardPage() {
       [currentTrip!.id]: [...(prev[currentTrip!.id] || []), newPlace],
     }));
 
-    setSelectedPlaceId(newPlace.id);
+    if (currentTrip.id === activeTrip?.id) {
+      setSelectedPlaceId(newPlace.id);
+    }
+
+    if (currentUser?.uid) {
+      saveVisitedPlaceToFirestore(currentUser.uid, newPlace);
+    }
   };
 
   // Delete Visit
@@ -361,6 +434,10 @@ export default function DashboardPage() {
       ...prev,
       [activeTrip.id]: (prev[activeTrip.id] || []).filter((p) => p.id !== placeId),
     }));
+
+    if (currentUser?.uid) {
+      deleteVisitedPlaceFromFirestore(placeId);
+    }
   };
 
   // Import AI Processed Chapters
@@ -418,6 +495,12 @@ export default function DashboardPage() {
 
       setChaptersMap({ [autoTrip.id]: newChapters });
       setVisitedPlacesMap({ [autoTrip.id]: newPlaces });
+
+      if (currentUser?.uid) {
+        saveTripToFirestore(currentUser.uid, autoTrip);
+        newChapters.forEach((c) => saveChapterToFirestore(currentUser.uid, c));
+        newPlaces.forEach((vp) => saveVisitedPlaceToFirestore(currentUser.uid, vp));
+      }
       return;
     }
 
@@ -467,6 +550,11 @@ export default function DashboardPage() {
       ...prev,
       [activeTrip.id]: [...(prev[activeTrip.id] || []), ...newPlaces],
     }));
+
+    if (currentUser?.uid) {
+      newChapters.forEach((c) => saveChapterToFirestore(currentUser.uid, c));
+      newPlaces.forEach((vp) => saveVisitedPlaceToFirestore(currentUser.uid, vp));
+    }
   };
 
   const totalKmTraveled = activeVisitedPlaces.reduce((acc, curr, idx, arr) => {
@@ -484,7 +572,7 @@ export default function DashboardPage() {
         activeTrip={activeTrip}
         onSelectTrip={handleSelectTrip}
         onOpenCreateTrip={handleStartTripClick}
-        onOpenWishlist={() => setIsWishlistOpen(true)}
+        onOpenWishlist={() => setIsWishlistOpen(false || true)}
         onOpenPhotoUploader={handleImportPhotosClick}
         onOpenMenuScanner={() => setIsMenuScannerOpen(true)}
         onOpenItineraryPlanner={() => setIsItineraryPlannerOpen(true)}
@@ -511,8 +599,8 @@ export default function DashboardPage() {
               </h1>
               <p className="text-sm text-stone-600 max-w-md mx-auto leading-relaxed">
                 {currentUser
-                  ? 'Your clean culinary travel diary. Start a new trip, import EXIF food photos, bookmark wishlist spots, and explore in 3D.'
-                  : 'Your clean culinary travel diary. Please sign in or create an account to start logging food trips, importing EXIF photos, and exploring in 3D.'}
+                  ? 'Your clean culinary travel diary. Start a new trip or hometown food journal, import EXIF photos, and log dining spots.'
+                  : 'Your clean culinary travel diary. Please sign in or create an account to start logging food trips, importing EXIF photos, and syncing across mobile & desktop.'}
               </p>
             </div>
 
@@ -533,7 +621,7 @@ export default function DashboardPage() {
                   className="flex items-center gap-2 rounded-xl bg-[#ff947a] px-6 py-3 text-sm font-bold text-[#025259] hover:bg-[#f08368] transition shadow-md"
                 >
                   <Plus className="h-5 w-5" />
-                  Start Your First Food Trip
+                  Start Food Log or Trip
                 </button>
 
                 <button
@@ -547,7 +635,7 @@ export default function DashboardPage() {
             )}
           </div>
         ) : (
-          /* Active Trip Hero Header Bar */
+          /* Active Trip / Log Hero Header Bar */
           <div className="relative rounded-3xl overflow-hidden border border-[#025259]/20 bg-[#025259] text-white shadow-xl p-6 sm:p-8">
             <div className="absolute inset-0 opacity-20">
               <img
@@ -562,7 +650,7 @@ export default function DashboardPage() {
               <div className="space-y-2 max-w-2xl">
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <span className="rounded-full bg-[#ff947a] px-3 py-1 font-bold text-[#025259] shadow-sm">
-                    📍 {activeTrip.destination}
+                    {activeTrip.categoryType === 'hometown_log' || activeTrip.isHometown ? '🏠 Hometown Log' : '✈️ Travel Trip'} • {activeTrip.destination}
                   </span>
                   <span className="flex items-center gap-1.5 text-[#FDF8F0] bg-[#013b40]/80 px-3 py-1 rounded-full border border-[#03717b]">
                     <Calendar className="h-3.5 w-3.5 text-[#E3A857]" />
@@ -621,10 +709,12 @@ export default function DashboardPage() {
             {/* Right Column: Timeline Chapters & Food Log */}
             <div className="lg:col-span-6 space-y-6">
               
-              <div className="flex items-center justify-between bg-[#FFFFFF] p-4 rounded-2xl border border-[#025259]/15 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-[#FFFFFF] p-4 rounded-2xl border border-[#025259]/15 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Layers className="h-5 w-5 text-[#ff947a]" />
-                  <h2 className="font-serif font-bold text-lg text-[#025259]">Daily Food Diary</h2>
+                  <h2 className="font-serif font-bold text-lg text-[#025259]">
+                    {activeTrip.categoryType === 'hometown_log' || activeTrip.isHometown ? 'Hometown Food Journal' : 'Daily Food Diary'}
+                  </h2>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -644,7 +734,7 @@ export default function DashboardPage() {
                     className="flex items-center gap-1.5 rounded-lg bg-[#ff947a] border border-[#ff947a] px-3 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#f08368] transition shadow-sm"
                   >
                     <Plus className="h-4 w-4" />
-                    Log Dining Visit
+                    Log Visit
                   </button>
                 </div>
               </div>
@@ -678,7 +768,7 @@ export default function DashboardPage() {
         wishlistItems={wishlistItems}
         onAddWishlistItem={handleAddWishlistItem}
         onConvertToVisited={handleConvertToVisited}
-        onRemoveWishlistItem={(id) => setWishlistItems((prev) => prev.filter((item) => item.id !== id))}
+        onRemoveWishlistItem={handleRemoveWishlistItem}
         onOpenItineraryPlanner={() => {
           setIsWishlistOpen(false);
           setIsItineraryPlannerOpen(true);
@@ -752,6 +842,10 @@ export default function DashboardPage() {
         chapters={activeChapters}
         defaultChapterId={targetChapterId}
         onSaveVisit={handleSaveVisit}
+        trips={trips}
+        activeTrip={activeTrip}
+        onSelectTrip={handleSelectTrip}
+        isHometown={activeTrip?.categoryType === 'hometown_log' || activeTrip?.isHometown}
       />
 
       <CreateTripModal
@@ -777,8 +871,8 @@ export default function DashboardPage() {
         }}
       />
 
-      {/* Footer */}
-      <footer className="mt-12 border-t border-[#013b40] bg-[#025259] py-8 text-center text-xs text-[#FAF3E7]">
+      {/* Footer (Hidden on Mobile screens, visible on md and above) */}
+      <footer className="hidden md:block mt-12 border-t border-[#013b40] bg-[#025259] py-8 text-center text-xs text-[#FAF3E7]">
         <div className="mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-[#FAF3E7] p-1 shadow-sm">
