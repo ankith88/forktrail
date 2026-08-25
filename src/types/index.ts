@@ -93,3 +93,26 @@ export interface AIProcessedPhotoGroup {
     photoUrls: string[];
   }[];
 }
+
+export interface ReelSlide {
+  venueName: string;
+  category: string;
+  rating: number;
+  photoUrl: string;
+  narrative: string;
+  dishHighlights: string[];
+  vibeTag: string;
+  lat: number;
+  lng: number;
+  timeCode?: string;
+}
+
+export interface ReelData {
+  headline: string;
+  tagline: string;
+  occasionPrompt?: string;
+  occasionBadge?: string;
+  bgMusicMood?: 'romantic' | 'festive' | 'chill' | 'luxury';
+  slides: ReelSlide[];
+}
+

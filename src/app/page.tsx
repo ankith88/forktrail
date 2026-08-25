@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Trip, TimelineChapter, VisitedPlace, WishlistItem, AIProcessedPhotoGroup } from '@/types';
+import { Trip, TimelineChapter, VisitedPlace, WishlistItem, AIProcessedPhotoGroup, ReelData } from '@/types';
 import { Navbar } from '@/components/Navbar';
 import { MapView } from '@/components/Dashboard/MapView';
 import { TimelineView } from '@/components/Dashboard/TimelineView';
@@ -10,9 +10,11 @@ import { WishlistDrawer } from '@/components/Dashboard/WishlistDrawer';
 import { AddVisitModal } from '@/components/Dashboard/AddVisitModal';
 import { CreateTripModal } from '@/components/Dashboard/CreateTripModal';
 import { AuthModal } from '@/components/Auth/AuthModal';
+import { OccasionPromptModal } from '@/components/Reel/OccasionPromptModal';
+import { ReelViewer } from '@/components/Reel/ReelViewer';
 import { subscribeToAuthChanges, logoutUser } from '@/lib/firebase/auth';
 import { User as FirebaseUser } from 'firebase/auth';
-import { Compass, MapPin, Calendar, Heart, Plus, Sparkles, Utensils, BookOpen, Share2, Layers, LogIn, UserPlus } from 'lucide-react';
+import { Compass, MapPin, Calendar, Heart, Plus, Sparkles, Utensils, BookOpen, Share2, Layers, LogIn, UserPlus, Film } from 'lucide-react';
 import { calculateHaversineDistance } from '@/lib/utils';
 
 export default function DashboardPage() {
@@ -38,7 +40,56 @@ export default function DashboardPage() {
   const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
   const [isCreateTripModalOpen, setIsCreateTripModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isOccasionModalOpen, setIsOccasionModalOpen] = useState(false);
+  const [isGeneratingReel, setIsGeneratingReel] = useState(false);
+  const [activeReelData, setActiveReelData] = useState<ReelData | null>(null);
   const [targetChapterId, setTargetChapterId] = useState<string | undefined>(undefined);
+  const [pendingAction, setPendingAction] = useState<'create_trip' | 'import_photos' | null>(null);
+
+  const handleStartTripClick = () => {
+    if (!currentUser) {
+      setPendingAction('create_trip');
+      setIsAuthModalOpen(true);
+    } else {
+      setIsCreateTripModalOpen(true);
+    }
+  };
+
+  const handleImportPhotosClick = () => {
+    if (!currentUser) {
+      setPendingAction('import_photos');
+      setIsAuthModalOpen(true);
+    } else {
+      setIsPhotoUploaderOpen(true);
+    }
+  };
+
+  // Generate Occasion-Based AI Story Reel
+  const handleGenerateOccasionReel = async (occasionPrompt: string) => {
+    setIsGeneratingReel(true);
+    try {
+      const res = await fetch('/api/generate-reel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tripSlug: activeTrip?.slug || 'tokyo-culinary-odyssey',
+          occasionPrompt,
+          customPlaces: activeVisitedPlaces,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.reel) {
+        setActiveReelData(data.reel);
+        setIsOccasionModalOpen(false);
+      }
+    } catch (err) {
+      console.error('Error generating AI occasion reel:', err);
+    } finally {
+      setIsGeneratingReel(false);
+    }
+  };
+
 
   // Subscribe to auth changes
   useEffect(() => {
@@ -299,9 +350,9 @@ export default function DashboardPage() {
         trips={trips}
         activeTrip={activeTrip}
         onSelectTrip={handleSelectTrip}
-        onOpenCreateTrip={() => setIsCreateTripModalOpen(true)}
+        onOpenCreateTrip={handleStartTripClick}
         onOpenWishlist={() => setIsWishlistOpen(true)}
-        onOpenPhotoUploader={() => setIsPhotoUploaderOpen(true)}
+        onOpenPhotoUploader={handleImportPhotosClick}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         currentUser={currentUser}
         onSignOut={() => logoutUser()}
@@ -321,36 +372,41 @@ export default function DashboardPage() {
             
             <div className="space-y-2">
               <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#025259]">
-                Welcome to ForkTrail
+                {currentUser ? `Welcome, ${currentUser.displayName || 'Food Explorer'}!` : 'Welcome to ForkTrail'}
               </h1>
               <p className="text-sm text-stone-600 max-w-md mx-auto leading-relaxed">
-                Your clean culinary travel diary. Start a new trip, import EXIF food photos, bookmark wishlist spots, and explore in 3D.
+                {currentUser
+                  ? 'Your clean culinary travel diary. Start a new trip, import EXIF food photos, bookmark wishlist spots, and explore in 3D.'
+                  : 'Your clean culinary travel diary. Please sign in or create an account to start logging food trips, importing EXIF photos, and exploring in 3D.'}
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <button
-                onClick={() => setIsCreateTripModalOpen(true)}
-                className="flex items-center gap-2 rounded-xl bg-[#ff947a] px-6 py-3 text-sm font-bold text-[#025259] hover:bg-[#f08368] transition shadow-md"
-              >
-                <Plus className="h-5 w-5" />
-                Start Your First Food Trip
-              </button>
+            {!currentUser ? (
+              <div className="flex justify-center pt-2">
+                <button
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="flex items-center gap-2.5 rounded-xl bg-[#ff947a] px-8 py-3.5 text-sm font-bold text-[#025259] hover:bg-[#f08368] transition shadow-md hover:scale-102"
+                >
+                  <LogIn className="h-5 w-5" />
+                  Sign In / Create Account
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={() => setIsCreateTripModalOpen(true)}
+                  className="flex items-center gap-2 rounded-xl bg-[#ff947a] px-6 py-3 text-sm font-bold text-[#025259] hover:bg-[#f08368] transition shadow-md"
+                >
+                  <Plus className="h-5 w-5" />
+                  Start Your First Food Trip
+                </button>
 
-              <button
-                onClick={() => setIsPhotoUploaderOpen(true)}
-                className="flex items-center gap-2 rounded-xl border border-[#025259]/20 bg-[#FAF3E7] px-5 py-3 text-sm font-bold text-[#025259] hover:bg-[#FDF8F0] transition shadow-sm"
-              >
-                <Sparkles className="h-4 w-4 text-[#ff947a]" />
-                Batch Import EXIF Photos
-              </button>
-            </div>
-
-            {!currentUser && (
-              <div className="pt-4 border-t border-[#025259]/10 text-xs text-stone-500 flex items-center justify-center gap-2">
-                <span>Have an account?</span>
-                <button onClick={() => setIsAuthModalOpen(true)} className="font-bold text-[#025259] underline">
-                  Sign In / Register
+                <button
+                  onClick={() => setIsPhotoUploaderOpen(true)}
+                  className="flex items-center gap-2 rounded-xl border border-[#025259]/20 bg-[#FAF3E7] px-5 py-3 text-sm font-bold text-[#025259] hover:bg-[#FDF8F0] transition shadow-sm"
+                >
+                  <Sparkles className="h-4 w-4 text-[#ff947a]" />
+                  Batch Import EXIF Photos
                 </button>
               </div>
             )}
@@ -438,6 +494,14 @@ export default function DashboardPage() {
 
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={() => setIsOccasionModalOpen(true)}
+                    className="flex items-center gap-1.5 rounded-lg border border-[#025259]/20 bg-[#FAF3E7] px-3 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#FDF8F0] transition shadow-sm"
+                  >
+                    <Sparkles className="h-4 w-4 text-[#ff947a]" />
+                    AI Occasion Story
+                  </button>
+
+                  <button
                     onClick={() => {
                       setTargetChapterId(undefined);
                       setIsAddVisitModalOpen(true);
@@ -486,6 +550,22 @@ export default function DashboardPage() {
         onImportChapters={handleImportAIChapters}
       />
 
+      <OccasionPromptModal
+        isOpen={isOccasionModalOpen}
+        onClose={() => setIsOccasionModalOpen(false)}
+        onGenerate={handleGenerateOccasionReel}
+        isGenerating={isGeneratingReel}
+      />
+
+      {activeReelData && (
+        <ReelViewer
+          tripTitle={activeTrip?.title || 'Culinary Experience'}
+          reelData={activeReelData}
+          onClose={() => setActiveReelData(null)}
+          onOpenOccasionModal={() => setIsOccasionModalOpen(true)}
+        />
+      )}
+
       <AddVisitModal
         isOpen={isAddVisitModalOpen}
         onClose={() => setIsAddVisitModalOpen(false)}
@@ -502,8 +582,19 @@ export default function DashboardPage() {
 
       <AuthModal
         isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onSuccess={(user) => setCurrentUser(user)}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          setPendingAction(null);
+        }}
+        onSuccess={(user) => {
+          setCurrentUser(user);
+          if (pendingAction === 'create_trip') {
+            setIsCreateTripModalOpen(true);
+          } else if (pendingAction === 'import_photos') {
+            setIsPhotoUploaderOpen(true);
+          }
+          setPendingAction(null);
+        }}
       />
 
       {/* Footer */}

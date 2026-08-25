@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { MOCK_TRIPS, MOCK_VISITED_PLACES } from '@/lib/mockData';
-import { ReelViewer, ReelData } from '@/components/Reel/ReelViewer';
+import { ReelViewer } from '@/components/Reel/ReelViewer';
+import { ReelData } from '@/types';
 
 interface ReelPageProps {
   params: Promise<{
