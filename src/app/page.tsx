@@ -28,6 +28,7 @@ import {
   deleteVisitedPlaceFromFirestore,
   saveWishlistItemToFirestore,
   deleteWishlistItemFromFirestore,
+  syncUserProfileToFirestore,
 } from '@/lib/firebase/firestoreData';
 import { User as FirebaseUser } from 'firebase/auth';
 import { Compass, MapPin, Calendar, Heart, Plus, Sparkles, Utensils, BookOpen, Share2, Layers, LogIn, UserPlus, Film } from 'lucide-react';
@@ -46,6 +47,7 @@ import {
 
 export default function DashboardPage() {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [mobileTab, setMobileTab] = useState<'timeline' | 'map'>('timeline');
 
   // Trips & State initialized clean
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -160,104 +162,97 @@ export default function DashboardPage() {
     return () => unsubscribe();
   }, []);
 
-  // Sync user data with Firestore when authenticated
+  // Sync user profile & user data with Firestore when authenticated
   useEffect(() => {
-    if (!currentUser?.uid) return;
+    if (!currentUser?.uid) {
+      // Clear memory & local state on sign out so no data leaks
+      setTrips([]);
+      setActiveTrip(null);
+      setVisitedPlacesMap({});
+      setChaptersMap({});
+      setWishlistItems([]);
+      return;
+    }
 
+    // Auto-provision or update user profile document in Firestore users collection
+    syncUserProfileToFirestore(currentUser);
+
+    // Fetch ONLY data belonging to currentUser.uid
     fetchUserDataFromFirestore(currentUser.uid).then((fsData) => {
-      if (fsData.trips.length > 0) {
-        setTrips(fsData.trips);
-        setActiveTrip((prev) => {
-          const found = fsData.trips.find((t) => t.id === prev?.id);
-          return found || fsData.trips[0];
-        });
-        setVisitedPlacesMap(fsData.visitedPlacesMap);
-        setChaptersMap(fsData.chaptersMap);
-        setWishlistItems(fsData.wishlistItems);
+      setTrips(fsData.trips);
+      setActiveTrip((prev) => {
+        const found = fsData.trips.find((t) => t.id === prev?.id);
+        return found || fsData.trips[0] || null;
+      });
+      setVisitedPlacesMap(fsData.visitedPlacesMap);
+      setChaptersMap(fsData.chaptersMap);
+      setWishlistItems(fsData.wishlistItems);
 
-        saveStoredTrips(fsData.trips);
-        saveStoredVisitedPlaces(fsData.visitedPlacesMap);
-        saveStoredChapters(fsData.chaptersMap);
-        saveStoredWishlist(fsData.wishlistItems);
-      } else {
-        // Upload local data to Firestore if user doesn't have remote data yet
-        trips.forEach((t) => saveTripToFirestore(currentUser.uid, t));
-        Object.values(chaptersMap)
-          .flat()
-          .forEach((c) => saveChapterToFirestore(currentUser.uid, c));
-        Object.values(visitedPlacesMap)
-          .flat()
-          .forEach((vp) => saveVisitedPlaceToFirestore(currentUser.uid, vp));
-        wishlistItems.forEach((w) => saveWishlistItemToFirestore(currentUser.uid, w));
-      }
+      saveStoredTrips(fsData.trips, currentUser.uid);
+      saveStoredVisitedPlaces(fsData.visitedPlacesMap, currentUser.uid);
+      saveStoredChapters(fsData.chaptersMap, currentUser.uid);
+      saveStoredWishlist(fsData.wishlistItems, currentUser.uid);
     });
   }, [currentUser]);
 
-  // Load stored user data on mount
+  // Save trips state updates to user-scoped storage
   useEffect(() => {
-    const loadedTrips = getStoredTrips();
-    const loadedVisitedMap = getStoredVisitedPlaces();
-    const loadedWishlist = getStoredWishlist();
-    const loadedChaptersMap = getStoredChapters();
-
-    if (loadedTrips.length > 0) {
-      setTrips(loadedTrips);
-      setActiveTrip(loadedTrips[0]);
+    if (currentUser?.uid && trips.length > 0) {
+      saveStoredTrips(trips, currentUser.uid);
     }
-    setVisitedPlacesMap(loadedVisitedMap);
-    setWishlistItems(loadedWishlist);
-    setChaptersMap(loadedChaptersMap);
-  }, []);
+  }, [trips, currentUser]);
 
-  // Save trips state updates
+  // Save visited places state updates to user-scoped storage
   useEffect(() => {
-    if (trips.length > 0) {
-      saveStoredTrips(trips);
+    if (currentUser?.uid) {
+      saveStoredVisitedPlaces(visitedPlacesMap, currentUser.uid);
     }
-  }, [trips]);
+  }, [visitedPlacesMap, currentUser]);
 
-  // Save visited places state updates
+  // Save wishlist state updates to user-scoped storage
   useEffect(() => {
-    saveStoredVisitedPlaces(visitedPlacesMap);
-  }, [visitedPlacesMap]);
+    if (currentUser?.uid) {
+      saveStoredWishlist(wishlistItems, currentUser.uid);
+    }
+  }, [wishlistItems, currentUser]);
 
-  // Save wishlist state updates
+  // Save chapters state updates to user-scoped storage
   useEffect(() => {
-    saveStoredWishlist(wishlistItems);
-  }, [wishlistItems]);
-
-  // Save chapters state updates
-  useEffect(() => {
-    saveStoredChapters(chaptersMap);
-  }, [chaptersMap]);
+    if (currentUser?.uid) {
+      saveStoredChapters(chaptersMap, currentUser.uid);
+    }
+  }, [chaptersMap, currentUser]);
 
   // Handle creating a new trip or hometown food journal
   const handleCreateTrip = (newTrip: Trip) => {
-    const isHometown = newTrip.categoryType === 'hometown_log' || newTrip.isHometown;
+    if (!currentUser?.uid) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    const finalTrip = { ...newTrip, userId: currentUser.uid };
+    const isHometown = finalTrip.categoryType === 'hometown_log' || finalTrip.isHometown;
     const defaultChapter: TimelineChapter = {
-      id: `chap_${newTrip.id}_d1`,
-      tripId: newTrip.id,
+      id: `chap_${finalTrip.id}_d1`,
+      tripId: finalTrip.id,
       dayNumber: 1,
-      date: newTrip.startDate,
+      date: finalTrip.startDate,
       title: isHometown ? 'Local Dining & Neighborhood Eats' : 'Day 1: Culinary Discoveries',
       notes: isHometown ? 'Favorite local restaurants, cafés, and hometown tasting notes.' : 'First day exploring local tasting spots and flavors.',
     };
 
-    setTrips((prev) => [newTrip, ...prev]);
-    setActiveTrip(newTrip);
+    setTrips((prev) => [finalTrip, ...prev]);
+    setActiveTrip(finalTrip);
     setChaptersMap((prev) => ({
       ...prev,
-      [newTrip.id]: [defaultChapter],
+      [finalTrip.id]: [defaultChapter],
     }));
     setVisitedPlacesMap((prev) => ({
       ...prev,
-      [newTrip.id]: [],
+      [finalTrip.id]: [],
     }));
 
-    if (currentUser?.uid) {
-      saveTripToFirestore(currentUser.uid, newTrip);
-      saveChapterToFirestore(currentUser.uid, defaultChapter);
-    }
+    saveTripToFirestore(currentUser.uid, finalTrip);
+    saveChapterToFirestore(currentUser.uid, defaultChapter);
   };
 
   // Select active trip
@@ -269,6 +264,10 @@ export default function DashboardPage() {
 
   // Convert Wishlist item into a Visited Place
   const handleConvertToVisited = (item: WishlistItem) => {
+    if (!currentUser?.uid) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     if (!activeTrip) return;
 
     const targetChapter = activeChapters[0] || {
@@ -308,17 +307,19 @@ export default function DashboardPage() {
     setWishlistItems((prev) => prev.filter((w) => w.id !== item.id));
     setSelectedPlaceId(newVisitedPlace.id);
 
-    if (currentUser?.uid) {
-      saveVisitedPlaceToFirestore(currentUser.uid, newVisitedPlace);
-      deleteWishlistItemFromFirestore(item.id);
-    }
+    saveVisitedPlaceToFirestore(currentUser.uid, newVisitedPlace);
+    deleteWishlistItemFromFirestore(item.id);
   };
 
   // Add Wishlist item
   const handleAddWishlistItem = (item: Partial<WishlistItem>) => {
+    if (!currentUser?.uid) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     const newItem: WishlistItem = {
       id: `wish_${Date.now()}`,
-      userId: currentUser?.uid || 'user_active',
+      userId: currentUser.uid,
       tripId: activeTrip?.id,
       placeId: item.placeId || `p_${Date.now()}`,
       name: item.name || 'Unnamed Spot',
@@ -333,9 +334,7 @@ export default function DashboardPage() {
     };
     setWishlistItems((prev) => [newItem, ...prev]);
 
-    if (currentUser?.uid) {
-      saveWishlistItemToFirestore(currentUser.uid, newItem);
-    }
+    saveWishlistItemToFirestore(currentUser.uid, newItem);
   };
 
   // Remove Wishlist item
@@ -348,6 +347,11 @@ export default function DashboardPage() {
 
   // Save manually added Visit (Auto-creates Hometown Journal if no trip is selected)
   const handleSaveVisit = (visit: Partial<VisitedPlace>) => {
+    if (!currentUser?.uid) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     let currentTrip = trips.find((t) => t.id === visit.tripId) || activeTrip;
     let targetChapterId = visit.chapterId;
 
@@ -355,7 +359,7 @@ export default function DashboardPage() {
       // Auto-create default Hometown Food Journal
       currentTrip = {
         id: `hometown_${Date.now()}`,
-        userId: currentUser?.uid || 'user_active',
+        userId: currentUser.uid,
         title: 'My Hometown Food Journal',
         slug: 'hometown-food-journal',
         destination: 'My Home City',
@@ -387,10 +391,8 @@ export default function DashboardPage() {
 
       targetChapterId = defaultChapter.id;
 
-      if (currentUser?.uid) {
-        saveTripToFirestore(currentUser.uid, currentTrip);
-        saveChapterToFirestore(currentUser.uid, defaultChapter);
-      }
+      saveTripToFirestore(currentUser.uid, currentTrip);
+      saveChapterToFirestore(currentUser.uid, defaultChapter);
     }
 
     const newPlace: VisitedPlace = {
@@ -422,9 +424,7 @@ export default function DashboardPage() {
       setSelectedPlaceId(newPlace.id);
     }
 
-    if (currentUser?.uid) {
-      saveVisitedPlaceToFirestore(currentUser.uid, newPlace);
-    }
+    saveVisitedPlaceToFirestore(currentUser.uid, newPlace);
   };
 
   // Delete Visit
@@ -442,11 +442,16 @@ export default function DashboardPage() {
 
   // Import AI Processed Chapters
   const handleImportAIChapters = (aiChapters: AIProcessedPhotoGroup[]) => {
+    if (!currentUser?.uid) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     if (!activeTrip) {
       // Auto create a trip for imported photos
       const autoTrip: Trip = {
         id: `trip_${Date.now()}`,
-        userId: currentUser?.uid || 'user_active',
+        userId: currentUser.uid,
         title: aiChapters[0]?.suggestedChapterTitle || 'New Food Journey',
         slug: `food-journey-${Date.now()}`,
         destination: 'Culinary Destination',
@@ -496,11 +501,9 @@ export default function DashboardPage() {
       setChaptersMap({ [autoTrip.id]: newChapters });
       setVisitedPlacesMap({ [autoTrip.id]: newPlaces });
 
-      if (currentUser?.uid) {
-        saveTripToFirestore(currentUser.uid, autoTrip);
-        newChapters.forEach((c) => saveChapterToFirestore(currentUser.uid, c));
-        newPlaces.forEach((vp) => saveVisitedPlaceToFirestore(currentUser.uid, vp));
-      }
+      saveTripToFirestore(currentUser.uid, autoTrip);
+      newChapters.forEach((c) => saveChapterToFirestore(currentUser.uid, c));
+      newPlaces.forEach((vp) => saveVisitedPlaceToFirestore(currentUser.uid, vp));
       return;
     }
 
@@ -690,72 +693,111 @@ export default function DashboardPage() {
 
         {/* Dashboard Split View: Interactive Map (Left) + Daily Timeline (Right) */}
         {activeTrip && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="space-y-4">
             
-            {/* Left Column: Interactive Map Component */}
-            <div className="lg:col-span-6 h-[550px] lg:h-[750px] lg:sticky lg:top-20">
-              <MapView
-                visitedPlaces={activeVisitedPlaces}
-                wishlistItems={wishlistItems}
-                chapters={activeChapters}
-                selectedPlaceId={selectedPlaceId}
-                onSelectPlace={(place) => place && setSelectedPlaceId(place.id)}
-                onConvertToVisited={handleConvertToVisited}
-                activeDayFilter={activeDayFilter}
-                onSelectDayFilter={(day) => setActiveDayFilter(day)}
-              />
+            {/* Mobile View Switcher (< lg screens) */}
+            <div className="flex lg:hidden items-center justify-center p-1 bg-[#FFFFFF] rounded-2xl border border-[#025259]/15 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setMobileTab('timeline')}
+                className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                  mobileTab === 'timeline'
+                    ? 'bg-[#ff947a] text-[#025259] shadow-sm'
+                    : 'text-stone-600 hover:text-[#025259]'
+                }`}
+              >
+                <Layers className="h-4 w-4" />
+                <span>Timeline Diary</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileTab('map')}
+                className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                  mobileTab === 'map'
+                    ? 'bg-[#ff947a] text-[#025259] shadow-sm'
+                    : 'text-stone-600 hover:text-[#025259]'
+                }`}
+              >
+                <MapPin className="h-4 w-4" />
+                <span>Interactive Map</span>
+              </button>
             </div>
 
-            {/* Right Column: Timeline Chapters & Food Log */}
-            <div className="lg:col-span-6 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start pb-20 md:pb-8">
               
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-[#FFFFFF] p-4 rounded-2xl border border-[#025259]/15 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <Layers className="h-5 w-5 text-[#ff947a]" />
-                  <h2 className="font-serif font-bold text-lg text-[#025259]">
-                    {activeTrip.categoryType === 'hometown_log' || activeTrip.isHometown ? 'Hometown Food Journal' : 'Daily Food Diary'}
-                  </h2>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsOccasionModalOpen(true)}
-                    className="flex items-center gap-1.5 rounded-lg border border-[#025259]/20 bg-[#FAF3E7] px-3 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#FDF8F0] transition shadow-sm"
-                  >
-                    <Sparkles className="h-4 w-4 text-[#ff947a]" />
-                    AI Occasion Story
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setTargetChapterId(undefined);
-                      setIsAddVisitModalOpen(true);
-                    }}
-                    className="flex items-center gap-1.5 rounded-lg bg-[#ff947a] border border-[#ff947a] px-3 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#f08368] transition shadow-sm"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Log Visit
-                  </button>
-                </div>
+              {/* Left Column: Interactive Map Component */}
+              <div
+                className={`lg:col-span-6 h-[460px] sm:h-[550px] lg:h-[750px] lg:sticky lg:top-20 ${
+                  mobileTab === 'map' ? 'block' : 'hidden lg:block'
+                }`}
+              >
+                <MapView
+                  visitedPlaces={activeVisitedPlaces}
+                  wishlistItems={wishlistItems}
+                  chapters={activeChapters}
+                  selectedPlaceId={selectedPlaceId}
+                  onSelectPlace={(place) => place && setSelectedPlaceId(place.id)}
+                  onConvertToVisited={handleConvertToVisited}
+                  activeDayFilter={activeDayFilter}
+                  onSelectDayFilter={(day) => setActiveDayFilter(day)}
+                />
               </div>
 
-              {/* Timeline View Component */}
-              <TimelineView
-                chapters={activeChapters}
-                visitedPlaces={activeVisitedPlaces}
-                selectedPlaceId={selectedPlaceId}
-                onSelectPlace={(place) => setSelectedPlaceId(place.id)}
-                onOpenAddModal={(chapId) => {
-                  setTargetChapterId(chapId);
-                  setIsAddVisitModalOpen(true);
-                }}
-                onDeletePlace={handleDeletePlace}
-                onOpenVisualSearch={(url) => setVisualSearchPhotoUrl(url)}
-                onOpenSocialCaptions={(place) => setSocialCaptionPlace(place)}
-              />
+              {/* Right Column: Timeline Chapters & Food Log */}
+              <div
+                className={`lg:col-span-6 space-y-6 ${
+                  mobileTab === 'timeline' ? 'block' : 'hidden lg:block'
+                }`}
+              >
+                
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-[#FFFFFF] p-4 rounded-2xl border border-[#025259]/15 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <Layers className="h-5 w-5 text-[#ff947a]" />
+                    <h2 className="font-serif font-bold text-lg text-[#025259]">
+                      {activeTrip.categoryType === 'hometown_log' || activeTrip.isHometown ? 'Hometown Food Journal' : 'Daily Food Diary'}
+                    </h2>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsOccasionModalOpen(true)}
+                      className="flex items-center gap-1.5 rounded-lg border border-[#025259]/20 bg-[#FAF3E7] px-3 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#FDF8F0] transition shadow-sm"
+                    >
+                      <Sparkles className="h-4 w-4 text-[#ff947a]" />
+                      AI Occasion Story
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setTargetChapterId(undefined);
+                        setIsAddVisitModalOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 rounded-lg bg-[#ff947a] border border-[#ff947a] px-3 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#f08368] transition shadow-sm"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Log Visit
+                    </button>
+                  </div>
+                </div>
+
+                {/* Timeline View Component */}
+                <TimelineView
+                  chapters={activeChapters}
+                  visitedPlaces={activeVisitedPlaces}
+                  selectedPlaceId={selectedPlaceId}
+                  onSelectPlace={(place) => setSelectedPlaceId(place.id)}
+                  onOpenAddModal={(chapId) => {
+                    setTargetChapterId(chapId);
+                    setIsAddVisitModalOpen(true);
+                  }}
+                  onDeletePlace={handleDeletePlace}
+                  onOpenVisualSearch={(url) => setVisualSearchPhotoUrl(url)}
+                  onOpenSocialCaptions={(place) => setSocialCaptionPlace(place)}
+                />
+
+              </div>
 
             </div>
-
           </div>
         )}
 
@@ -818,6 +860,7 @@ export default function DashboardPage() {
         isOpen={isPhotoUploaderOpen}
         onClose={() => setIsPhotoUploaderOpen(false)}
         onImportChapters={handleImportAIChapters}
+        userId={currentUser?.uid}
       />
 
       <OccasionPromptModal
@@ -846,12 +889,14 @@ export default function DashboardPage() {
         activeTrip={activeTrip}
         onSelectTrip={handleSelectTrip}
         isHometown={activeTrip?.categoryType === 'hometown_log' || activeTrip?.isHometown}
+        userId={currentUser?.uid}
       />
 
       <CreateTripModal
         isOpen={isCreateTripModalOpen}
         onClose={() => setIsCreateTripModalOpen(false)}
         onCreateTrip={handleCreateTrip}
+        userId={currentUser?.uid}
       />
 
       <AuthModal

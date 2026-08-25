@@ -8,6 +8,9 @@ import { VoiceNoteRecorder } from '@/components/ai/VoiceNoteRecorder';
 import { VoiceNoteAnalysis } from '@/types';
 import { GoogleRestaurantDropdown, GooglePlaceResult } from './GoogleRestaurantDropdown';
 
+import { UploadCloud } from 'lucide-react';
+import { uploadImageToStorage } from '@/lib/firebase/storageUpload';
+
 interface AddVisitModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -18,6 +21,7 @@ interface AddVisitModalProps {
   activeTrip?: Trip | null;
   onSelectTrip?: (trip: Trip) => void;
   isHometown?: boolean;
+  userId?: string;
 }
 
 export function AddVisitModal({
@@ -30,6 +34,7 @@ export function AddVisitModal({
   activeTrip = null,
   onSelectTrip,
   isHometown = false,
+  userId,
 }: AddVisitModalProps) {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -42,8 +47,28 @@ export function AddVisitModal({
   const [selectedTripId, setSelectedTripId] = useState<string>(activeTrip?.id || (trips.length > 0 ? trips[0].id : ''));
   const [chapterId, setChapterId] = useState(defaultChapterId || chapters[0]?.id || '');
   const [photoUrl, setPhotoUrl] = useState('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isAutopopulated, setIsAutopopulated] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState('');
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    const file = e.target.files[0];
+    if (!userId) {
+      alert('Please sign in to upload photos.');
+      return;
+    }
+    setIsUploadingPhoto(true);
+    try {
+      const storageUrl = await uploadImageToStorage(file, userId, 'visit_photos');
+      setPhotoUrl(storageUrl);
+    } catch (err: any) {
+      console.error('Error uploading photo to Firebase Storage:', err);
+      alert('Failed to upload image to Firebase Storage: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
 
   // Keep selectedTripId in sync with activeTrip
   useEffect(() => {
@@ -456,8 +481,8 @@ export function AddVisitModal({
             />
           </div>
 
-          {/* Dish Tags & Photo URL */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Dish Tags & Photo Upload */}
+          <div className="space-y-3">
             <div>
               <label htmlFor="modal-dish-tags" className="block text-[#025259] font-bold mb-1">Dish Tags (comma separated)</label>
               <input
@@ -469,16 +494,45 @@ export function AddVisitModal({
                 className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] placeholder-stone-400 focus:border-[#ff947a] focus:outline-none"
               />
             </div>
+
             <div>
-              <label htmlFor="modal-photo-url" className="block text-[#025259] font-bold mb-1">Food Photo Image URL</label>
-              <input
-                id="modal-photo-url"
-                type="text"
-                placeholder="https://images.unsplash.com/..."
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
-                className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] placeholder-stone-400 focus:border-[#ff947a] focus:outline-none"
-              />
+              <label className="block text-[#025259] font-bold mb-1">Food Photo (Upload to Firebase Storage)</label>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <label className="flex items-center justify-center gap-2 cursor-pointer rounded-xl bg-[#ff947a]/20 border border-[#ff947a] px-3.5 py-2.5 text-xs font-bold text-[#025259] hover:bg-[#ff947a]/30 transition shrink-0">
+                  {isUploadingPhoto ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin text-[#025259]" />
+                      <span>Uploading to Firebase...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="h-4 w-4 text-[#025259]" />
+                      <span>Choose Image File</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    disabled={isUploadingPhoto}
+                    className="hidden"
+                  />
+                </label>
+                <input
+                  id="modal-photo-url"
+                  type="text"
+                  placeholder="Or paste image URL (https://...)"
+                  value={photoUrl}
+                  onChange={(e) => setPhotoUrl(e.target.value)}
+                  className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] placeholder-stone-400 focus:border-[#ff947a] focus:outline-none text-xs"
+                />
+              </div>
+              {photoUrl && (
+                <div className="mt-2 flex items-center gap-2">
+                  <img src={photoUrl} alt="Preview" className="h-10 w-10 rounded-lg object-cover border border-[#025259]/20" />
+                  <span className="text-[10px] text-emerald-700 font-semibold truncate">Image attached & ready to save!</span>
+                </div>
+              )}
             </div>
           </div>
 

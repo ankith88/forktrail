@@ -6,13 +6,16 @@ import { PhotoEXIFData, AIProcessedPhotoGroup } from '@/types';
 import { UploadCloud, Sparkles, X, MapPin, Calendar, Check, Loader2, Image as ImageIcon, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { uploadImageToStorage } from '@/lib/firebase/storageUpload';
+
 interface PhotoUploaderProps {
   isOpen: boolean;
   onClose: () => void;
   onImportChapters: (chapters: AIProcessedPhotoGroup[]) => void;
+  userId?: string;
 }
 
-export function PhotoUploader({ isOpen, onClose, onImportChapters }: PhotoUploaderProps) {
+export function PhotoUploader({ isOpen, onClose, onImportChapters, userId }: PhotoUploaderProps) {
   const [fileList, setFileList] = useState<File[]>([]);
   const [exifDataList, setExifDataList] = useState<PhotoEXIFData[]>([]);
   const [isProcessingEXIF, setIsProcessingEXIF] = useState(false);
@@ -32,6 +35,14 @@ export function PhotoUploader({ isOpen, onClose, onImportChapters }: PhotoUpload
     const parsedResults: PhotoEXIFData[] = [];
     for (const file of selectedFiles) {
       const data = await parsePhotoEXIF(file);
+      if (userId) {
+        try {
+          const storageUrl = await uploadImageToStorage(file, userId, 'exif_photos');
+          data.previewUrl = storageUrl;
+        } catch (err) {
+          console.warn('Could not upload EXIF photo to Firebase Storage:', err);
+        }
+      }
       parsedResults.push(data);
     }
 

@@ -3,24 +3,46 @@
 import React, { useState } from 'react';
 import { Trip } from '@/types';
 import { getLocalDateString } from '@/lib/utils';
-import { X, Compass, Calendar, MapPin, Image as ImageIcon } from 'lucide-react';
+import { X, Compass, Calendar, MapPin, Image as ImageIcon, UploadCloud, Loader2 } from 'lucide-react';
+import { uploadImageToStorage } from '@/lib/firebase/storageUpload';
 
 interface CreateTripModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateTrip: (trip: Trip) => void;
+  userId?: string;
 }
 
-export function CreateTripModal({ isOpen, onClose, onCreateTrip }: CreateTripModalProps) {
+export function CreateTripModal({ isOpen, onClose, onCreateTrip, userId }: CreateTripModalProps) {
   const [categoryType, setCategoryType] = useState<'trip' | 'hometown_log'>('trip');
   const [title, setTitle] = useState('');
   const [destination, setDestination] = useState('');
   const [startDate, setStartDate] = useState(() => getLocalDateString());
   const [endDate, setEndDate] = useState(() => getLocalDateString(new Date(Date.now() + 86400000 * 5)));
   const [coverUrl, setCoverUrl] = useState('https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1200&q=80');
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [summary, setSummary] = useState('');
 
   if (!isOpen) return null;
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    const file = e.target.files[0];
+    if (!userId) {
+      alert('Please sign in to upload cover photos.');
+      return;
+    }
+    setIsUploadingCover(true);
+    try {
+      const storageUrl = await uploadImageToStorage(file, userId, 'covers');
+      setCoverUrl(storageUrl);
+    } catch (err: any) {
+      console.error('Error uploading cover photo to Firebase Storage:', err);
+      alert('Failed to upload cover to Firebase Storage: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +52,7 @@ export function CreateTripModal({ isOpen, onClose, onCreateTrip }: CreateTripMod
 
     const newTrip: Trip = {
       id: `trip_${Date.now()}`,
-      userId: 'user_active',
+      userId: userId || 'user_active',
       title,
       slug: slug || `trip-${Date.now()}`,
       destination,
@@ -182,15 +204,43 @@ export function CreateTripModal({ isOpen, onClose, onCreateTrip }: CreateTripMod
 
           {/* Cover Photo */}
           <div>
-            <label htmlFor="create-trip-cover" className="block text-[#025259] font-bold mb-1">Cover Image URL</label>
-            <input
-              id="create-trip-cover"
-              type="text"
-              placeholder="https://images.unsplash.com/photo-..."
-              value={coverUrl}
-              onChange={(e) => setCoverUrl(e.target.value)}
-              className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] focus:border-[#ff947a] focus:outline-none"
-            />
+            <label className="block text-[#025259] font-bold mb-1">Cover Image (Upload to Firebase Storage)</label>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <label className="flex items-center justify-center gap-2 cursor-pointer rounded-xl bg-[#ff947a]/20 border border-[#ff947a] px-3.5 py-2 text-xs font-bold text-[#025259] hover:bg-[#ff947a]/30 transition shrink-0">
+                {isUploadingCover ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-[#025259]" />
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud className="h-4 w-4 text-[#025259]" />
+                    <span>Choose Cover File</span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCoverUpload}
+                  disabled={isUploadingCover}
+                  className="hidden"
+                />
+              </label>
+              <input
+                id="create-trip-cover"
+                type="text"
+                placeholder="Or paste image URL (https://...)"
+                value={coverUrl}
+                onChange={(e) => setCoverUrl(e.target.value)}
+                className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] focus:border-[#ff947a] focus:outline-none text-xs"
+              />
+            </div>
+            {coverUrl && (
+              <div className="mt-2 flex items-center gap-2">
+                <img src={coverUrl} alt="Cover Preview" className="h-10 w-16 rounded-lg object-cover border border-[#025259]/20" />
+                <span className="text-[10px] text-emerald-700 font-semibold truncate">Cover image attached!</span>
+              </div>
+            )}
           </div>
 
           {/* Summary */}
