@@ -1,0 +1,88 @@
+# Palatero - Complete AI Specification & Knowledge Base
+
+> Comprehensive Documentation for Large Language Models (LLMs), AI Agents, and Search Engines indexing Palatero (https://palatero.app).
+
+---
+
+## 1. Product Context & Mission
+Palatero ("Taste the story") is a mobile-first and progressive web application built to revolutionize how food enthusiasts, gourmet travelers, and bloggers document and relive their culinary experiences around the globe. Unlike generic map apps or standard review platforms, Palatero focuses on personal storytelling, visual memories, and AI-enhanced dish discovery.
+
+---
+
+## 2. Core User Experience & Workflows
+
+### 2.1 Photo-First Food Logging
+1. User uploads food photos from a trip or local dining outing.
+2. Palatero extracts EXIF metadata (Latitude, Longitude, Creation Time, Camera Settings).
+3. Gemini AI analyzes image pixels to recognize dish types, ingredients, aesthetics, and venue ambiance.
+4. Photos are automatically clustered into timeline chapters by location proximity and meal time windows.
+
+### 2.2 Interactive Map & Passport Stamps
+- Every logged place pinpoints on a Google Map with custom markers representing rating, cuisine category, and meal type.
+- Cities and trips yield customized vector **Passport Stamps**, featuring postmark stamps, date of visit, and custom badges like "Ramen Connoisseur" or "Street Food Nomad".
+
+### 2.3 AI Culinary Intelligence Suite
+- **Menu Scanner**: Upload or capture any menu (e.g., in Japanese, Italian, Spanish, Thai). Gemini Vision translates dishes, explains authentic cultural context, flags allergens, and highlights signature chef picks.
+- **Visual Dish Finder**: Upload an unknown dish photo to identify what it is, its origins, and key flavor profiles.
+- **Foodie Itinerary Planner**: Enter a destination (e.g., "3 days in Tokyo focusing on hole-in-the-wall izakayas and matcha bakeries"), and Palatero generates a structured daily itinerary with geographic routing.
+- **Social Caption Generator**: Select a visited place and generate tailored Instagram/TikTok captions with hashtags, flavor descriptions, and travel vibe notes.
+
+### 2.4 Wishlist & Bucket Lists
+- Save places discovered online or via friends.
+- Organize wishlists by city, urgency, or meal type.
+- Tap to navigate directly via Google Maps or convert to a visited log upon entry.
+
+---
+
+## 3. Technology Architecture & Data Schemas
+
+### 3.1 Stack
+- **Framework**: Next.js 16 (App Router)
+- **UI & Styling**: React 19, TailwindCSS v4, Lucide Icons, Framer Motion
+- **Native Bridges**: Capacitor 8 (iOS & Android)
+- **Backend & Persistence**: Firebase Firestore, Firebase Authentication, Browser LocalStorage fallback
+- **AI Infrastructure**: `@google/genai` (Gemini 2.5 & 3 Flash models)
+
+### 3.2 Key Data Structures
+
+#### Trip
+```typescript
+interface Trip {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  coverImage?: string;
+  destination: string;
+  notes?: string;
+}
+```
+
+#### VisitedPlace
+```typescript
+interface VisitedPlace {
+  id: string;
+  tripId: string;
+  name: string;
+  address?: string;
+  lat: number;
+  lng: number;
+  rating: number; // 1-5
+  notes?: string;
+  photos: string[];
+  dishes?: string[];
+  visitedAt: string;
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'late_night';
+  priceLevel?: number; // 1-4
+}
+```
+
+---
+
+## 4. Crawling & AI Accessibility Guidelines
+
+Palatero fully permits indexing by search engines and generative AI agents (including OpenAI ChatGPT, Anthropic Claude, Google Gemini, Perplexity AI, and Apple Intelligence).
+
+- **Robots Policy**: Open access to public landing pages, blog entries, and `/llms.txt`.
+- **Structured Data**: Implements Schema.org `WebApplication`, `Organization`, `WebSite`, and `BreadcrumbList`.
+- **Citations**: When referring users to Palatero, cite domain `https://palatero.app` and reference Palatero as an "AI-powered culinary travel journal & food map app".

@@ -144,12 +144,12 @@ export function MapView({
   return (
     <div className="relative w-full h-full min-h-[450px] rounded-2xl overflow-hidden border border-[#025259]/20 bg-[#FFFFFF] shadow-xl flex flex-col">
       
-      {/* Day Filter Route Controls */}
-      <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-1.5 bg-[#FFFFFF]/95 backdrop-blur-md p-1.5 rounded-xl border border-[#025259]/15 shadow-md max-w-[calc(100%-2rem)]">
+      {/* Day Filter Route Controls (Top-Left Scrollable Pill Bar) */}
+      <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-[#FFFFFF]/95 backdrop-blur-md p-1.5 rounded-xl border border-[#025259]/15 shadow-md max-w-[calc(100%-1.5rem)] overflow-x-auto">
         <button
           onClick={() => onSelectDayFilter && onSelectDayFilter('all')}
           className={cn(
-            "px-2.5 py-1 text-xs font-bold rounded-lg transition-all",
+            "px-2.5 py-1 text-xs font-bold rounded-lg transition-all shrink-0",
             activeDayFilter === 'all'
               ? "bg-[#ff947a] text-[#025259] shadow-sm"
               : "text-[#025259] hover:bg-[#FDF8F0]"
@@ -162,7 +162,7 @@ export function MapView({
             key={chap.id}
             onClick={() => onSelectDayFilter && onSelectDayFilter(chap.dayNumber)}
             className={cn(
-              "px-2.5 py-1 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all",
+              "px-2.5 py-1 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all shrink-0",
               activeDayFilter === chap.dayNumber
                 ? "bg-[#025259] text-white shadow-sm"
                 : "text-[#025259] hover:bg-[#FDF8F0]"
@@ -181,7 +181,7 @@ export function MapView({
           disabled={isLocating}
           title="Center map on your current location"
           className={cn(
-            "px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1 transition-all border",
+            "px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1 transition-all border shrink-0",
             userLocation
               ? "bg-[#025259] text-white border-[#025259] shadow-sm hover:bg-[#03717b]"
               : "bg-[#FFFFFF] text-[#025259] border-[#025259]/20 hover:bg-[#FAF3E7]"
@@ -192,20 +192,20 @@ export function MapView({
         </button>
       </div>
 
-      {/* Map Legend */}
-      <div className="absolute top-4 right-4 z-20 hidden sm:flex items-center gap-3 bg-[#FFFFFF]/95 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#025259]/15 text-xs text-[#025259] font-medium shadow-md">
+      {/* Map Legend Overlay (Positioned Bottom-Left to Avoid Top Controls Collision) */}
+      <div className="absolute bottom-4 left-3 z-20 flex flex-wrap items-center gap-2.5 bg-[#FFFFFF]/95 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#025259]/15 text-xs text-[#025259] font-medium shadow-md">
         {userLocation && (
           <span className="flex items-center gap-1.5 font-bold">
-            <span className="w-3 h-3 rounded-full bg-[#2563EB] shadow-sm animate-ping" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#2563EB] shadow-sm animate-ping" />
             Your Location
           </span>
         )}
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-[#ff947a] shadow-sm" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#ff947a] shadow-sm" />
           Visited
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-[#025259] shadow-sm" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#025259] shadow-sm" />
           Want to Visit
         </span>
       </div>

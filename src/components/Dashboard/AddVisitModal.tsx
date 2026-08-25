@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { VisitedPlace, TimelineChapter, Trip } from '@/types';
-import { getLocalDateString } from '@/lib/utils';
+import { getLocalDateString, getMealPeriodFromTime, MealType } from '@/lib/utils';
 import {
   X,
   MapPin,
@@ -10,6 +10,7 @@ import {
   Utensils,
   Tag,
   Calendar,
+  Clock,
   Navigation,
   Loader2,
   Sparkles,
@@ -30,6 +31,8 @@ interface AddVisitModalProps {
   onClose: () => void;
   chapters: TimelineChapter[];
   defaultChapterId?: string;
+  defaultDate?: string;
+  initialVisit?: VisitedPlace | null;
   onSaveVisit: (visit: Partial<VisitedPlace>) => void;
   trips?: Trip[];
   activeTrip?: Trip | null;
@@ -43,6 +46,8 @@ export function AddVisitModal({
   onClose,
   chapters,
   defaultChapterId,
+  defaultDate,
+  initialVisit,
   onSaveVisit,
   trips = [],
   activeTrip = null,
@@ -56,13 +61,18 @@ export function AddVisitModal({
   const [rating, setRating] = useState(5);
   const [priceLevel, setPriceLevel] = useState(2);
   const [recommendedDish, setRecommendedDish] = useState('');
+
   const [tastingNotes, setTastingNotes] = useState('');
   const [dishTagsStr, setDishTagsStr] = useState('');
   const [selectedTripId, setSelectedTripId] = useState<string>(activeTrip?.id || (trips.length > 0 ? trips[0].id : ''));
   const [chapterId, setChapterId] = useState(defaultChapterId || chapters[0]?.id || '');
   
-  // Multi-photo upload state
-  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  // Occasion & Celebration Reason
+  const [occasion, setOccasion] = useState('casual');
+  const [celebrationReason, setCelebrationReason] = useState('');
+
+  // Multi-photo upload & labeled dish photos state
+  const [photos, setPhotos] = useState<{ url: string; dishName?: string }[]>([]);
   const [customUrlInput, setCustomUrlInput] = useState('');
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   
@@ -70,12 +80,11 @@ export function AddVisitModal({
   const [selectedPlaceId, setSelectedPlaceId] = useState('');
   const [showAdvancedLocation, setShowAdvancedLocation] = useState(false);
 
-  // Keep selectedTripId in sync with activeTrip
-  useEffect(() => {
-    if (activeTrip) {
-      setSelectedTripId(activeTrip.id);
-    }
-  }, [activeTrip]);
+  // User Geolocation capture
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<string>('Select venue via Google search for auto-location');
 
   const currentTrip = trips.find((t) => t.id === selectedTripId) || activeTrip;
   const isHometownLog =
@@ -85,14 +94,98 @@ export function AddVisitModal({
     chapters.length === 0 ||
     chapters[0]?.id?.includes('hometown');
 
-  // Date Visited - Defaults to current local date
+  // Date & Time Visited & Meal Period
   const [visitDate, setVisitDate] = useState(() => getLocalDateString());
+  const [visitTimeInput, setVisitTimeInput] = useState(() => {
+    const now = new Date();
+    const hrs = String(now.getHours()).padStart(2, '0');
+    const mins = String(now.getMinutes()).padStart(2, '0');
+    return `${hrs}:${mins}`;
+  });
+  const [mealType, setMealType] = useState<MealType>(() => getMealPeriodFromTime(visitTimeInput));
+  const [isManualMealType, setIsManualMealType] = useState(false);
 
-  // User Geolocation capture
-  const [lat, setLat] = useState<number | null>(null);
-  const [lng, setLng] = useState<number | null>(null);
-  const [isLocating, setIsLocating] = useState(false);
-  const [locationStatus, setLocationStatus] = useState<string>('Select venue via Google search for auto-location');
+  // Initialize or reset form state when modal opens or initialVisit/defaultDate/defaultChapterId changes
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (initialVisit) {
+      setName(initialVisit.name || '');
+      setAddress(initialVisit.address || '');
+      setCategory(initialVisit.category || 'Restaurant');
+      setRating(initialVisit.rating || 5);
+      setPriceLevel(initialVisit.priceLevel || 2);
+      setRecommendedDish(initialVisit.recommendedDish || '');
+      setTastingNotes(initialVisit.tastingNotes || '');
+      setDishTagsStr((initialVisit.dishTags || []).join(', '));
+      setSelectedPlaceId(initialVisit.placeId || '');
+      setChapterId(initialVisit.chapterId || defaultChapterId || chapters[0]?.id || '');
+      setOccasion(initialVisit.occasion || 'casual');
+      setCelebrationReason(initialVisit.celebrationReason || '');
+      
+      const vDate = initialVisit.localDate || (initialVisit.visitTime ? initialVisit.visitTime.split('T')[0] : getLocalDateString());
+      setVisitDate(vDate);
+
+      const vTime = initialVisit.localTime || (initialVisit.visitTime && initialVisit.visitTime.includes('T') ? initialVisit.visitTime.split('T')[1].substring(0, 5) : '20:00');
+      setVisitTimeInput(vTime);
+      setMealType(initialVisit.mealType || getMealPeriodFromTime(vTime));
+      setIsManualMealType(Boolean(initialVisit.mealType));
+
+      if (initialVisit.lat && initialVisit.lng) {
+        setLat(initialVisit.lat);
+        setLng(initialVisit.lng);
+        setLocationStatus(`📍 Venue GPS: ${initialVisit.lat.toFixed(4)}°, ${initialVisit.lng.toFixed(4)}°`);
+      }
+
+      if (initialVisit.photos && initialVisit.photos.length > 0) {
+        setPhotos(initialVisit.photos);
+      } else if (initialVisit.photoUrls && initialVisit.photoUrls.length > 0) {
+        setPhotos(initialVisit.photoUrls.map((url) => ({ url, dishName: '' })));
+      } else {
+        setPhotos([]);
+      }
+    } else {
+      // New visit creation
+      setName('');
+      setAddress('');
+      setCategory('Restaurant');
+      setRating(5);
+      setPriceLevel(2);
+      setRecommendedDish('');
+      setTastingNotes('');
+      setDishTagsStr('');
+      setSelectedPlaceId('');
+      setOccasion('casual');
+      setCelebrationReason('');
+      setPhotos([]);
+
+      const targetChap = defaultChapterId ? chapters.find((c) => c.id === defaultChapterId) : undefined;
+      const initialDate = defaultDate || targetChap?.date || getLocalDateString();
+      setVisitDate(initialDate);
+
+      const now = new Date();
+      const hrs = String(now.getHours()).padStart(2, '0');
+      const mins = String(now.getMinutes()).padStart(2, '0');
+      const nowTimeStr = `${hrs}:${mins}`;
+      setVisitTimeInput(nowTimeStr);
+      setMealType(getMealPeriodFromTime(nowTimeStr));
+      setIsManualMealType(false);
+    }
+  }, [isOpen, initialVisit, defaultDate, defaultChapterId]);
+
+  // Keep selectedTripId in sync with activeTrip
+  useEffect(() => {
+    if (activeTrip) {
+      setSelectedTripId(activeTrip.id);
+    }
+  }, [activeTrip]);
+
+  const handleTimeChange = (newTime: string) => {
+    setVisitTimeInput(newTime);
+    if (!isManualMealType) {
+      setMealType(getMealPeriodFromTime(newTime));
+    }
+  };
 
   const handleDetectLocation = () => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
@@ -122,7 +215,6 @@ export function AddVisitModal({
     const detectedCuisine = place.cuisine || place.category || 'Restaurant';
     setCategory(detectedCuisine);
 
-    // Auto-set Geolocation from Google Place
     if (place.lat !== null && place.lng !== null) {
       setLat(place.lat);
       setLng(place.lng);
@@ -137,9 +229,8 @@ export function AddVisitModal({
       setPriceLevel(Math.max(1, Math.min(4, place.priceLevel)));
     }
 
-    // Auto-attach Google Place cover photo to multi-photo gallery if present
-    if (place.photoUrl && !photoUrls.includes(place.photoUrl)) {
-      setPhotoUrls((prev) => [place.photoUrl, ...prev.filter((u) => u !== place.photoUrl)]);
+    if (place.photoUrl && !photos.some((p) => p.url === place.photoUrl)) {
+      setPhotos((prev) => [{ url: place.photoUrl, dishName: '' }, ...prev]);
     }
 
     if (place.placeId) {
@@ -153,7 +244,6 @@ export function AddVisitModal({
     setIsAutopopulated(false);
   };
 
-  // Multiple photos upload handler
   const handleMultiplePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return;
     const files = Array.from(e.target.files);
@@ -164,12 +254,12 @@ export function AddVisitModal({
 
     setIsUploadingPhoto(true);
     try {
-      const newUrls: string[] = [];
+      const newItems: { url: string; dishName: string }[] = [];
       for (const file of files) {
         const url = await uploadImageToStorage(file, userId, 'visit_photos');
-        if (url) newUrls.push(url);
+        if (url) newItems.push({ url, dishName: '' });
       }
-      setPhotoUrls((prev) => [...prev, ...newUrls]);
+      setPhotos((prev) => [...prev, ...newItems]);
     } catch (err: any) {
       console.error('Error uploading photos:', err);
       alert('Failed to upload image(s): ' + (err.message || 'Unknown error'));
@@ -182,14 +272,18 @@ export function AddVisitModal({
   const handleAddCustomUrl = () => {
     if (!customUrlInput.trim()) return;
     const trimmed = customUrlInput.trim();
-    if (!photoUrls.includes(trimmed)) {
-      setPhotoUrls((prev) => [...prev, trimmed]);
+    if (!photos.some((p) => p.url === trimmed)) {
+      setPhotos((prev) => [...prev, { url: trimmed, dishName: '' }]);
     }
     setCustomUrlInput('');
   };
 
+  const handleUpdateDishName = (index: number, dishName: string) => {
+    setPhotos((prev) => prev.map((p, i) => (i === index ? { ...p, dishName } : p)));
+  };
+
   const handleRemovePhoto = (index: number) => {
-    setPhotoUrls((prev) => prev.filter((_, i) => i !== index));
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
   if (!isOpen) return null;
@@ -203,22 +297,23 @@ export function AddVisitModal({
       .map((t) => t.trim())
       .filter(Boolean);
 
-    // Build ISO timestamp from user selected date
-    const selectedDateObj = new Date(visitDate + 'T' + new Date().toTimeString().split(' ')[0]);
+    const localDateTimeStr = `${visitDate}T${visitTimeInput}:00`;
+    const selectedDateObj = new Date(localDateTimeStr);
     const visitTimeIso = isNaN(selectedDateObj.getTime())
-      ? new Date().toISOString()
+      ? `${visitDate}T${visitTimeInput}:00Z`
       : selectedDateObj.toISOString();
 
-    const finalPhotos = photoUrls.length
-      ? photoUrls
-      : ['https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80'];
+    const finalPhotos = photos.length
+      ? photos
+      : [{ url: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80', dishName: recommendedDish || 'Chef Specialty' }];
 
     onSaveVisit({
+      id: initialVisit?.id,
       tripId: currentTrip?.id,
       chapterId: isHometownLog
         ? defaultChapterId || chapters[0]?.id || `chap_${currentTrip?.id || 'hometown'}_local`
         : chapterId || (chapters.length > 0 ? chapters[0].id : 'chap_hometown'),
-      placeId: selectedPlaceId || `place_${Date.now()}`,
+      placeId: selectedPlaceId || initialVisit?.placeId || `place_${Date.now()}`,
       name,
       address: address || 'Local Dining Spot',
       category,
@@ -228,10 +323,16 @@ export function AddVisitModal({
       tastingNotes,
       dishTags: dishTags.length ? dishTags : ['Local Eats'],
       visitTime: visitTimeIso,
+      localDate: visitDate,
+      localTime: visitTimeInput,
+      mealType,
       lat: lat !== null ? lat : 35.6812 + (Math.random() - 0.5) * 0.05,
       lng: lng !== null ? lng : 139.7671 + (Math.random() - 0.5) * 0.05,
       isHometown: isHometownLog,
-      photoUrls: finalPhotos,
+      photoUrls: finalPhotos.map((p) => p.url),
+      photos: finalPhotos,
+      occasion,
+      celebrationReason,
     });
 
     onClose();
@@ -297,10 +398,10 @@ export function AddVisitModal({
               </div>
             )}
 
-            {/* Target Log & Date Visited */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Target Log, Date & Time Visited */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {trips.length > 0 && (
-                <div>
+                <div className="sm:col-span-1">
                   <label htmlFor="modal-target-trip" className="block text-[#025259] font-bold mb-1 flex items-center gap-1.5 text-xs">
                     <BookOpen className="h-3.5 w-3.5 text-[#ff947a]" /> Target Log / Journal
                   </label>
@@ -338,6 +439,102 @@ export function AddVisitModal({
                   className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] text-xs font-medium focus:border-[#ff947a] focus:outline-none transition shadow-sm"
                 />
               </div>
+
+              <div>
+                <label htmlFor="modal-visit-time" className="block text-[#025259] font-bold mb-1 flex items-center gap-1 text-xs">
+                  <Clock className="h-3.5 w-3.5 text-[#ff947a]" /> Time Visited
+                </label>
+                <input
+                  id="modal-visit-time"
+                  type="time"
+                  required
+                  value={visitTimeInput}
+                  onChange={(e) => handleTimeChange(e.target.value)}
+                  className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] text-xs font-medium focus:border-[#ff947a] focus:outline-none transition shadow-sm"
+                />
+              </div>
+            </div>
+
+            {/* Meal Period Selection */}
+            <div>
+              <label className="block text-[#025259] font-bold mb-1.5 flex items-center justify-between text-xs">
+                <span>Meal / Dining Occasion</span>
+                <span className="text-[10px] text-stone-500 font-normal">Auto-detected from time, click to customize</span>
+              </label>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                {[
+                  { id: 'breakfast', label: 'Breakfast', icon: '🌅' },
+                  { id: 'brunch', label: 'Brunch', icon: '🥂' },
+                  { id: 'lunch', label: 'Lunch', icon: '☀️' },
+                  { id: 'snack', label: 'Snack', icon: '☕' },
+                  { id: 'dinner', label: 'Dinner', icon: '🌙' },
+                  { id: 'late_night', label: 'Late Night', icon: '🍸' },
+                ].map((m) => {
+                  const isSelected = mealType === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => {
+                        setMealType(m.id as MealType);
+                        setIsManualMealType(true);
+                      }}
+                      className={`flex flex-col items-center justify-center p-2 rounded-xl border text-[11px] font-bold transition ${
+                        isSelected
+                          ? 'bg-[#ff947a] border-[#ff947a] text-[#025259] shadow-sm scale-102 ring-2 ring-[#ff947a]/30'
+                          : 'bg-[#FDF8F0] border-[#025259]/15 text-[#025259]/80 hover:bg-[#FAF3E7]'
+                      }`}
+                    >
+                      <span className="text-sm">{m.icon}</span>
+                      <span className="mt-0.5 leading-none text-[10px]">{m.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Celebration Occasion & Story Reason */}
+            <div className="rounded-xl border border-[#ff947a]/30 bg-[#ff947a]/5 p-3 space-y-2 shadow-xs">
+              <label className="block text-[#025259] font-bold flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1 text-[#025259]">
+                  <Sparkles className="h-3.5 w-3.5 text-[#ff947a]" /> Event / Celebration Occasion
+                </span>
+                <span className="text-[10px] text-stone-500 font-semibold">Powers AI 30s Reel Story</span>
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {[
+                  { id: 'birthday', label: '🎂 Birthday' },
+                  { id: 'anniversary', label: '🥂 Anniversary' },
+                  { id: 'date_night', label: '✨ Date Night' },
+                  { id: 'food_crawl', label: '🍜 Food Crawl' },
+                  { id: 'milestone', label: '🎉 Milestone' },
+                  { id: 'business', label: '💼 Business' },
+                  { id: 'casual', label: '🍽️ Casual Dine' },
+                ].map((occ) => {
+                  const isSelected = occasion === occ.id;
+                  return (
+                    <button
+                      key={occ.id}
+                      type="button"
+                      onClick={() => setOccasion(occ.id)}
+                      className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition text-left truncate ${
+                        isSelected
+                          ? 'bg-[#ff947a] border-[#ff947a] text-[#025259] shadow-sm'
+                          : 'bg-white border-[#025259]/15 text-[#025259]/80 hover:bg-[#FDF8F0]'
+                      }`}
+                    >
+                      {occ.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <input
+                type="text"
+                placeholder="Reason for eating here? (e.g. Sarah's 30th Birthday party with chef's tasting menu)"
+                value={celebrationReason}
+                onChange={(e) => setCelebrationReason(e.target.value)}
+                className="w-full rounded-xl border border-[#025259]/20 bg-white p-2.5 text-xs text-[#025259] placeholder-stone-400 focus:border-[#ff947a] focus:outline-none transition shadow-sm"
+              />
             </div>
 
             {/* Venue Name (Google Dropdown) */}
@@ -515,9 +712,9 @@ export function AddVisitModal({
             <div className="space-y-2 pt-2 border-t border-[#025259]/10">
               <label className="block text-[#025259] font-bold flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1">
-                  <ImageIcon className="h-3.5 w-3.5 text-[#ff947a]" /> Food Photos (Add Multiple)
+                  <ImageIcon className="h-3.5 w-3.5 text-[#ff947a]" /> Food Photos & Dish Names
                 </span>
-                <span className="text-[10px] text-stone-500 font-semibold">{photoUrls.length} photo(s) attached</span>
+                <span className="text-[10px] text-stone-500 font-semibold">{photos.length} photo(s) attached</span>
               </label>
 
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -571,22 +768,36 @@ export function AddVisitModal({
                 </div>
               </div>
 
-              {/* Photo Gallery Grid Preview */}
-              {photoUrls.length > 0 && (
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-2 pt-2 border-t border-[#025259]/10">
-                  {photoUrls.map((url, index) => (
-                    <div key={index} className="group relative h-16 w-full rounded-xl overflow-hidden border border-[#025259]/20 bg-stone-100 shadow-xs">
-                      <img src={url} alt={`Photo ${index + 1}`} className="h-full w-full object-cover transition group-hover:scale-105" />
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePhoto(index)}
-                        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600/90 text-white opacity-0 group-hover:opacity-100 transition shadow-sm"
-                        title="Remove photo"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
+              {/* Labeled Photo Gallery Grid Preview */}
+              {photos.length > 0 && (
+                <div className="space-y-2 mt-2 pt-2 border-t border-[#025259]/10 max-h-48 overflow-y-auto pr-1">
+                  <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wider block">
+                    Tag dish names for AI story & video reel:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {photos.map((item, index) => (
+                      <div key={index} className="flex items-center gap-2 p-1.5 rounded-xl border border-[#025259]/15 bg-[#FAF3E7]/50 shadow-xs">
+                        <div className="group relative h-12 w-12 rounded-lg overflow-hidden border border-[#025259]/20 shrink-0">
+                          <img src={item.url} alt={`Photo ${index + 1}`} className="h-full w-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePhoto(index)}
+                            className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-white opacity-80 hover:opacity-100 transition shadow-sm"
+                            title="Remove photo"
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Dish name (e.g. Wagyu A5 Nigiri)"
+                          value={item.dishName || ''}
+                          onChange={(e) => handleUpdateDishName(index, e.target.value)}
+                          className="flex-1 rounded-lg border border-[#025259]/20 bg-white px-2 py-1 text-[11px] text-[#025259] placeholder-stone-400 focus:border-[#ff947a] focus:outline-none"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

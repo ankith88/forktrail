@@ -26,7 +26,7 @@ export async function POST(request: Request) {
           });
         }
 
-        const prompt = `You are an expert sommelier and culinary critic AI for ForkTrail.
+        const prompt = `You are an expert sommelier and culinary critic AI for Palatero.
 Analyze the audio recording (or voice transcript snippet below) containing rambling user thoughts on a meal experience.
 ${textPrompt ? `User Voice Transcript: "${textPrompt}"` : ''}
 

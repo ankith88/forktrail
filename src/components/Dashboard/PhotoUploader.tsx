@@ -7,6 +7,7 @@ import { UploadCloud, Sparkles, X, MapPin, Calendar, Check, Loader2, Image as Im
 import { cn } from '@/lib/utils';
 
 import { uploadImageToStorage } from '@/lib/firebase/storageUpload';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
 interface PhotoUploaderProps {
   isOpen: boolean;
@@ -130,9 +131,12 @@ export function PhotoUploader({ isOpen, onClose, onImportChapters, userId }: Pho
 
             {/* EXIF Parsed Files Preview */}
             {isProcessingEXIF && (
-              <div className="flex items-center justify-center gap-2 py-4 text-xs font-bold text-[#025259]">
-                <Loader2 className="h-4 w-4 animate-spin text-[#ff947a]" />
-                <span>Extracting EXIF GPS coordinates & timestamps...</span>
+              <div className="py-4 flex justify-center">
+                <LoadingScreen
+                  size="sm"
+                  text="Extracting EXIF Metadata..."
+                  subtext="Reading GPS coordinates & timestamps from photos"
+                />
               </div>
             )}
 

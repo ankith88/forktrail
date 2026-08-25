@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     if (apiKey && apiKey !== 'your_gemini_api_key') {
       try {
         const ai = new GoogleGenAI({ apiKey });
-        const prompt = `You are a culinary AI travel assistant for ForkTrail.
+        const prompt = `You are a culinary AI travel assistant for Palatero.
 Analyze the following list of food photo metadata:
 ${JSON.stringify(sortedPhotos, null, 2)}
 

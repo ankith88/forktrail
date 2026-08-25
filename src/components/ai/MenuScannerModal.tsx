@@ -5,6 +5,8 @@ import { DecodedDish } from '@/types';
 import { X, Camera, Upload, Search, Sparkles, AlertTriangle, Star, Plus, Heart, Check, Loader2, Utensils } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
+
 interface MenuScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -158,12 +160,12 @@ export function MenuScannerModal({
 
           {/* Loading State */}
           {isDecoding && (
-            <div className="rounded-2xl border border-[#025259]/20 bg-[#FFFFFF] p-12 text-center space-y-3">
-              <Loader2 className="h-8 w-8 animate-spin text-[#ff947a] mx-auto" />
-              <h4 className="text-sm font-bold text-[#025259]">Decoding Menu with Gemini Vision...</h4>
-              <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                Extracting dish names, translating characters, verifying ingredients & cross-checking common food allergens.
-              </p>
+            <div className="rounded-2xl border border-[#025259]/20 bg-[#FFFFFF] p-8 text-center shadow-sm">
+              <LoadingScreen
+                size="md"
+                text="Decoding Menu with AI Vision..."
+                subtext="Extracting dish names, translating foreign characters, & cross-checking food allergens"
+              />
             </div>
           )}
 

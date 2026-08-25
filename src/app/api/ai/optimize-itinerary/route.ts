@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     if (apiKey && apiKey !== 'your_gemini_api_key') {
       try {
         const ai = new GoogleGenAI({ apiKey });
-        const prompt = `You are an expert culinary travel logistics optimizer AI for ForkTrail.
+        const prompt = `You are an expert culinary travel logistics optimizer AI for Palatero.
 Destination City: ${destination}
 Trip Length: ${tripLengthDays} day(s)
 

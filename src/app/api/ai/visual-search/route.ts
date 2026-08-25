@@ -31,7 +31,7 @@ export async function POST(request: Request) {
           });
         }
 
-        const prompt = `You are a visual culinary discovery AI for ForkTrail.
+        const prompt = `You are a visual culinary discovery AI for Palatero.
 Analyze this food photo (or photo URL: ${photoUrl}).
 Identify:
 1. Exact dish type (e.g. Tonkotsu Ramen, Neapolitan Pizza, A5 Wagyu Nigiri, Specialty Filter Coffee).

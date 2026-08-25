@@ -72,7 +72,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
             <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FAF3E7] p-1.5 border border-[#025259]/10 shadow-sm">
               <Image
                 src="/logo-mark.png"
-                alt="ForkTrail Mark"
+                alt="Palatero Mark"
                 width={40}
                 height={40}
                 className="h-full w-full object-contain"
@@ -80,10 +80,10 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
             </div>
             <div>
               <h2 className="text-base font-bold text-[#025259]">
-                {mode === 'register' ? 'Join ForkTrail' : 'Welcome Back'}
+                {mode === 'register' ? 'Join Palatero' : 'Welcome Back to Palatero'}
               </h2>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[#E3A857]">
-                Your Culinary Journey
+              <p className="text-[11px] font-bold text-[#ff947a]">
+                Taste the story.
               </p>
             </div>
           </div>
@@ -165,7 +165,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
               </>
             ) : (
               <>
-                <LogIn className="h-4 w-4" /> Sign In to ForkTrail
+                <LogIn className="h-4 w-4" /> Sign In to Palatero
               </>
             )}
           </button>

@@ -4,7 +4,7 @@ const path = require('path');
 const pngToIcoModule = require('png-to-ico');
 const pngToIco = pngToIcoModule.default || pngToIcoModule;
 
-async function processImageToTransparentBuffer(inputBuffer, threshold = 245) {
+async function processImageToTransparentBuffer(inputBuffer) {
   const { data, info } = await sharp(inputBuffer)
     .ensureAlpha()
     .raw()
@@ -12,20 +12,51 @@ async function processImageToTransparentBuffer(inputBuffer, threshold = 245) {
 
   const { width, height, channels } = info;
   const outputBuffer = Buffer.from(data);
+  const visited = new Uint8Array(width * height);
+  const queue = [];
 
-  for (let i = 0; i < outputBuffer.length; i += channels) {
-    const r = outputBuffer[i];
-    const g = outputBuffer[i + 1];
-    const b = outputBuffer[i + 2];
+  // Enqueue all border pixels
+  for (let x = 0; x < width; x++) {
+    queue.push(x, 0);
+    queue.push(x, height - 1);
+  }
+  for (let y = 1; y < height - 1; y++) {
+    queue.push(0, y);
+    queue.push(width - 1, y);
+  }
 
-    // Check if pixel is white / near-white
-    if (r >= threshold && g >= threshold && b >= threshold) {
-      outputBuffer[i + 3] = 0; // Alpha = 0
-    } else if (r > 200 && g > 200 && b > 200) {
-      // Soft alpha transition for antialiased white edges
-      const minVal = Math.min(r, g, b);
-      const alphaFactor = (255 - minVal) / (255 - 200);
-      outputBuffer[i + 3] = Math.round(255 * Math.max(0, Math.min(1, alphaFactor)));
+  while (queue.length > 0) {
+    const cy = queue.pop();
+    const cx = queue.pop();
+    const idx2d = cy * width + cx;
+    if (visited[idx2d]) continue;
+    visited[idx2d] = 1;
+
+    const idx = idx2d * channels;
+    const r = outputBuffer[idx];
+    const g = outputBuffer[idx + 1];
+    const b = outputBuffer[idx + 2];
+
+    // Dark green (#025259) or salmon (#FF947A) stops the flood fill
+    const isDarkGreen = r < 70 && g > 55 && b > 55;
+    const isBackground = r > 185 && g > 175 && b > 165 && !isDarkGreen;
+
+    if (isBackground) {
+      outputBuffer[idx + 3] = 0; // Transparent alpha
+
+      const neighbors = [
+        [cx - 1, cy],
+        [cx + 1, cy],
+        [cx, cy - 1],
+        [cx, cy + 1],
+      ];
+      for (const [nx, ny] of neighbors) {
+        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+          if (!visited[ny * width + nx]) {
+            queue.push(nx, ny);
+          }
+        }
+      }
     }
   }
 
@@ -39,32 +70,31 @@ async function processImageToTransparentBuffer(inputBuffer, threshold = 245) {
 }
 
 async function generateAssets() {
-  console.log('🎨 Starting ForkTrail Brand Asset Generation...');
+  console.log('🎨 Starting Palatero Brand Asset Generation...');
 
-  const sourcePath = path.join(__dirname, '../public/forktrail-brand.png');
+  const sourcePath = path.join(__dirname, '../public/palatero-brand.png');
   const publicDir = path.join(__dirname, '../public');
   const srcAppDir = path.join(__dirname, '../src/app');
 
   if (!fs.existsSync(sourcePath)) {
-    console.error('Source file public/forktrail-brand.png does not exist!');
+    console.error('Source file public/palatero-brand.png does not exist!');
     process.exit(1);
   }
 
-  // 1. Crop Mark Bounding Box (minY: 109, maxY: 456, minX: 551, maxX: 856)
-  // Give comfortable padding around the mark icon
+  // 1. Crop Mark Bounding Box for Palatero Compass Seal (left: 170, top: 125, width: 515, height: 515)
   const markCropBox = {
-    left: 540,
-    top: 100,
-    width: 328,
-    height: 366,
+    left: 170,
+    top: 125,
+    width: 515,
+    height: 515,
   };
 
-  // Crop Full Logo Bounding Box (minY: 109, maxY: 642, minX: 434, maxX: 973)
+  // Crop Full Logo Bounding Box (left: 160, top: 120, width: 1080, height: 520)
   const fullLogoCropBox = {
-    left: 420,
-    top: 95,
-    width: 568,
-    height: 560,
+    left: 160,
+    top: 120,
+    width: 1080,
+    height: 520,
   };
 
   console.log('Extracting logo mark...');
@@ -72,7 +102,7 @@ async function generateAssets() {
     .extract(markCropBox)
     .toBuffer();
 
-  const transparentMarkPng = await processImageToTransparentBuffer(croppedMarkBuffer, 245);
+  const transparentMarkPng = await processImageToTransparentBuffer(croppedMarkBuffer);
   const markBuffer = await transparentMarkPng.toBuffer();
 
   // Save public/logo-mark.png
@@ -84,7 +114,7 @@ async function generateAssets() {
     .extract(fullLogoCropBox)
     .toBuffer();
 
-  const transparentFullLogoPng = await processImageToTransparentBuffer(croppedFullLogoBuffer, 245);
+  const transparentFullLogoPng = await processImageToTransparentBuffer(croppedFullLogoBuffer);
   const fullLogoBuffer = await transparentFullLogoPng.toBuffer();
 
   // Save public/logo.png
@@ -118,8 +148,8 @@ async function generateAssets() {
   // 3. Mobile & PWA Icons
   console.log('Generating Mobile & PWA icons...');
 
-  // apple-touch-icon.png (180x180) - Solid dark teal background `#025259` with crisp centered mark
-  const markResized120 = await sharp(markBuffer)
+  // apple-touch-icon.png (180x180) - Solid dark green background `#025259` with crisp centered mark
+  const markResized130 = await sharp(markBuffer)
     .resize(130, 130, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .toBuffer();
 
@@ -128,10 +158,10 @@ async function generateAssets() {
       width: 180,
       height: 180,
       channels: 4,
-      background: { r: 2, g: 82, b: 89, alpha: 1 }, // #025259
+      background: { r: 2, g: 82, b: 89, alpha: 1 }, // #025259 Deep Green
     },
   })
-    .composite([{ input: markResized120, gravity: 'center' }])
+    .composite([{ input: markResized130, gravity: 'center' }])
     .png()
     .toFile(path.join(publicDir, 'apple-touch-icon.png'));
   console.log('✅ Generated public/apple-touch-icon.png');
@@ -146,7 +176,7 @@ async function generateAssets() {
       width: 192,
       height: 192,
       channels: 4,
-      background: { r: 2, g: 82, b: 89, alpha: 1 },
+      background: { r: 2, g: 82, b: 89, alpha: 1 }, // #025259
     },
   })
     .composite([{ input: markResized140, gravity: 'center' }])
@@ -164,7 +194,7 @@ async function generateAssets() {
       width: 512,
       height: 512,
       channels: 4,
-      background: { r: 2, g: 82, b: 89, alpha: 1 },
+      background: { r: 2, g: 82, b: 89, alpha: 1 }, // #025259
     },
   })
     .composite([{ input: markResized370, gravity: 'center' }])
@@ -182,7 +212,7 @@ async function generateAssets() {
       width: 512,
       height: 512,
       channels: 4,
-      background: { r: 2, g: 82, b: 89, alpha: 1 },
+      background: { r: 2, g: 82, b: 89, alpha: 1 }, // #025259
     },
   })
     .composite([{ input: markResizedMaskable, gravity: 'center' }])
@@ -190,10 +220,12 @@ async function generateAssets() {
     .toFile(path.join(publicDir, 'icon-maskable-512.png'));
   console.log('✅ Generated public/icon-maskable-512.png');
 
-  console.log('✨ All brand assets generated successfully!');
+  console.log('✨ All Palatero brand assets generated successfully!');
 }
 
 generateAssets().catch((err) => {
   console.error('Error generating assets:', err);
   process.exit(1);
 });
+
+

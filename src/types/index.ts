@@ -34,6 +34,11 @@ export interface TimelineChapter {
   notes?: string;
 }
 
+export interface VisitedPhoto {
+  url: string;
+  dishName?: string;
+}
+
 export interface VisitedPlace {
   id: string;
   tripId: string;
@@ -44,7 +49,14 @@ export interface VisitedPlace {
   lat: number;
   lng: number;
   visitTime: string;
+  localDate?: string; // YYYY-MM-DD (Preserves venue local wall-clock date)
+  localTime?: string; // HH:mm (e.g. 21:02)
+  mealType?: 'breakfast' | 'brunch' | 'lunch' | 'snack' | 'dinner' | 'late_night';
+  timezone?: string; // e.g. "Australia/Sydney"
   photoUrls: string[];
+  photos?: VisitedPhoto[];
+  occasion?: string;
+  celebrationReason?: string;
   dishTags: string[];
   rating: number; // 1-5
   tastingNotes: string;
@@ -74,6 +86,8 @@ export interface PhotoEXIFData {
   fileName: string;
   previewUrl: string;
   timestamp?: string;
+  localDate?: string;
+  localTime?: string;
   lat?: number;
   lng?: number;
   make?: string;
@@ -102,6 +116,7 @@ export interface ReelSlide {
   category: string;
   rating: number;
   photoUrl: string;
+  dishName?: string;
   narrative: string;
   dishHighlights: string[];
   vibeTag: string;

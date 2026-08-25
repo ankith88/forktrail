@@ -21,7 +21,7 @@ if (!getApps().length) {
     });
   } else {
     adminApp = initializeApp({
-      projectId: projectId || 'forktrail-demo',
+      projectId: projectId || 'palatero-demo',
     });
   }
 } else {

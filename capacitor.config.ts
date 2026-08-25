@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.forktrail.app',
-  appName: 'ForkTrail',
+  appId: 'com.palatero.app',
+  appName: 'Palatero',
   webDir: 'out',
   server: {
     // Allows testing live Next.js dev server on physical Android phone over local WiFi

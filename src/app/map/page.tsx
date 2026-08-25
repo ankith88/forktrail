@@ -6,6 +6,7 @@ import { Trip, VisitedPlace, WishlistItem, TimelineChapter } from '@/types';
 import { Map3DView } from '@/components/Map/Map3DView';
 import { Compass, ArrowLeft, Sparkles, Plus } from 'lucide-react';
 import { MobileNavigation } from '@/components/MobileNavigation';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import {
   getStoredTrips,
   getStoredVisitedPlaces,
@@ -15,6 +16,7 @@ import {
 } from '@/lib/storage';
 
 export default function Map3DPage() {
+  const [isLoading, setIsLoading] = useState(true);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [visitedPlaces, setVisitedPlaces] = useState<VisitedPlace[]>([]);
@@ -45,6 +47,7 @@ export default function Map3DPage() {
       const allChapters = Object.values(loadedChaptersMap).flat();
       setChapters(allChapters);
     }
+    setIsLoading(false);
   }, []);
 
   const handleConvertToVisited = (item: WishlistItem) => {
@@ -52,6 +55,17 @@ export default function Map3DPage() {
     setWishlistItems(updatedWishlist);
     saveStoredWishlist(updatedWishlist);
   };
+
+  if (isLoading) {
+    return (
+      <LoadingScreen
+        fullScreen
+        size="lg"
+        text="Loading 3D Map Engine..."
+        subtext="Initializing interactive culinary map"
+      />
+    );
+  }
 
   return (
     <div className="h-screen w-screen bg-[#FDF8F0] text-[#025259] flex flex-col font-sans overflow-hidden pb-14 md:pb-0">

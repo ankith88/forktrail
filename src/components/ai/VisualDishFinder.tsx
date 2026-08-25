@@ -5,6 +5,8 @@ import { VisualSearchResult, WishlistItem } from '@/types';
 import { X, Search, Sparkles, MapPin, Star, Heart, Plus, Check, Loader2, ChevronRight, Utensils } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
+
 interface VisualDishFinderProps {
   isOpen: boolean;
   onClose: () => void;
@@ -127,12 +129,12 @@ export function VisualDishFinder({
 
           {/* Loading state for spots */}
           {isLoading && (
-            <div className="rounded-2xl border border-[#025259]/20 bg-[#FFFFFF] p-10 text-center space-y-3">
-              <Loader2 className="h-8 w-8 animate-spin text-[#ff947a] mx-auto" />
-              <h4 className="text-sm font-bold text-[#025259]">Searching Nearby Google Places...</h4>
-              <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                Cross-referencing food photo attributes with top-rated local dining spots in your vicinity.
-              </p>
+            <div className="rounded-2xl border border-[#025259]/20 bg-[#FFFFFF] p-8 text-center shadow-sm">
+              <LoadingScreen
+                size="md"
+                text="Matching Dish with Culinary AI..."
+                subtext="Cross-referencing food photo attributes with nearby top-rated dining spots"
+              />
             </div>
           )}
 

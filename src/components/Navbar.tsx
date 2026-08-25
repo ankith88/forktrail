@@ -92,23 +92,23 @@ export function Navbar({
             </button>
 
             {/* Brand Logo */}
-            <Link href="/" className="flex items-center gap-2 group shrink-0">
+            <Link href="/" className="flex items-center gap-2.5 group shrink-0">
               <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-[#FAF3E7] p-1 shadow-md transition-transform group-hover:scale-105">
                 <Image
                   src="/logo-mark.png"
-                  alt="ForkTrail Mark"
+                  alt="Palatero Logo Mark"
                   width={36}
                   height={36}
                   className="h-full w-full object-contain"
                   priority
                 />
               </div>
-              <div className="hidden min-[400px]:block">
+              <div className="hidden min-[380px]:block">
                 <span className="font-serif text-lg sm:text-xl font-bold tracking-tight text-white block leading-tight">
-                  Fork<span className="text-[#ff947a]">Trail</span>
+                  Palatero
                 </span>
-                <span className="block text-[9px] sm:text-[10px] uppercase tracking-widest text-[#E3A857] font-sans font-semibold">
-                  Culinary Log
+                <span className="block text-[9px] sm:text-[10px] tracking-wide text-[#ff947a] font-sans font-semibold">
+                  Taste the story.
                 </span>
               </div>
             </Link>
@@ -249,21 +249,21 @@ export function Navbar({
               {/* Drawer Top Header: Logo + Close Button */}
               <div className="flex items-center justify-between border-b border-[#03717b] pb-4">
                 <div className="flex items-center gap-2.5">
-                  <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-[#FAF3E7] p-1 shadow-md">
+                  <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-[#FAF3E7] p-1 shadow-md">
                     <Image
                       src="/logo-mark.png"
-                      alt="ForkTrail Mark"
-                      width={32}
-                      height={32}
+                      alt="Palatero Mark"
+                      width={36}
+                      height={36}
                       className="h-full w-full object-contain"
                     />
                   </div>
                   <div>
-                    <span className="font-serif text-lg font-bold tracking-tight text-white block leading-tight">
-                      Fork<span className="text-[#ff947a]">Trail</span>
+                    <span className="font-serif text-xl font-bold tracking-tight text-white block leading-tight">
+                      Palatero
                     </span>
-                    <span className="block text-[9px] uppercase tracking-widest text-[#E3A857] font-sans font-semibold">
-                      Mobile Command Center
+                    <span className="block text-[10px] tracking-wide text-[#ff947a] font-sans font-semibold">
+                      Taste the story.
                     </span>
                   </div>
                 </div>

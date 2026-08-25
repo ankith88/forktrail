@@ -5,6 +5,8 @@ import { SocialCaptions, VisitedPlace } from '@/types';
 import { X, Share2, Copy, Check, Sparkles, Loader2, BookOpen, Globe, Camera, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
+
 interface SocialCaptionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -131,12 +133,12 @@ export function SocialCaptionModal({
 
           {/* Loading state */}
           {isLoading && (
-            <div className="rounded-2xl border border-[#025259]/20 bg-[#FFFFFF] p-10 text-center space-y-3">
-              <Loader2 className="h-8 w-8 animate-spin text-[#ff947a] mx-auto" />
-              <h4 className="text-sm font-bold text-[#025259]">Crafting Captions with Gemini...</h4>
-              <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                Synthesizing venue metadata, tasting notes, ratings, and culinary mood into 4 distinct social voices.
-              </p>
+            <div className="rounded-2xl border border-[#025259]/20 bg-[#FFFFFF] p-8 text-center shadow-sm">
+              <LoadingScreen
+                size="md"
+                text="Crafting Captions with AI..."
+                subtext="Synthesizing venue metadata, tasting notes, and culinary vibes"
+              />
             </div>
           )}
 

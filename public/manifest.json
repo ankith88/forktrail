@@ -1,7 +1,7 @@
 {
-  "name": "ForkTrail - Your Culinary Journey",
-  "short_name": "ForkTrail",
-  "description": "Discover food spots, track culinary journeys, view reels, and blog your food adventures.",
+  "name": "Palatero - Taste the story.",
+  "short_name": "Palatero",
+  "description": "Taste the story. Discover food spots, track culinary journeys, view reels, and document food adventures.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FDF8F0",

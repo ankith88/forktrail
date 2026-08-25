@@ -2,7 +2,7 @@ import { MOCK_USER, MOCK_TRIPS, MOCK_CHAPTERS, MOCK_VISITED_PLACES, MOCK_WISHLIS
 
 async function purgeAndSeedDatabase() {
   const isPurgeOnly = process.argv.includes('--purge') || process.argv.includes('--clean');
-  console.log(`--- ForkTrail Database Script [Mode: ${isPurgeOnly ? 'PURGE CLEAN BASELINE' : 'SEED MOCK DATA'}] ---`);
+  console.log(`--- Palatero Database Script [Mode: ${isPurgeOnly ? 'PURGE CLEAN BASELINE' : 'SEED MOCK DATA'}] ---`);
 
   try {
     const { adminDb } = await import('../admin');
@@ -54,7 +54,7 @@ async function purgeAndSeedDatabase() {
     if (isPurgeOnly) {
       console.log('✓ Local mock dataset purged / reset.');
     } else {
-      console.log('ForkTrail running with in-memory datasets in demo fallback mode.');
+      console.log('Palatero running with in-memory datasets in demo fallback mode.');
     }
   }
 }

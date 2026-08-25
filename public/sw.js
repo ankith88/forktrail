@@ -1,4 +1,4 @@
-const CACHE_NAME = 'forktrail-v1';
+const CACHE_NAME = 'palatero-v1';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',

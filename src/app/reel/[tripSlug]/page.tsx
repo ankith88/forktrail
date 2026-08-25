@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: ReelPageProps): Promise<Metad
   const trip = MOCK_TRIPS.find((t) => t.slug === tripSlug) || MOCK_TRIPS[0];
 
   return {
-    title: `${trip.title} — AI Story Reel | ForkTrail`,
+    title: `${trip.title} — AI Story Reel | Palatero`,
     description: `Watch the vertical AI Culinary Memory Reel for ${trip.title}`,
     openGraph: {
       title: `${trip.title} — AI Culinary Story Reel`,

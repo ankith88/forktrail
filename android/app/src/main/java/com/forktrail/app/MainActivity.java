@@ -1,4 +1,4 @@
-package com.forktrail.app;
+package com.palatero.app;
 
 import com.getcapacitor.BridgeActivity;
 

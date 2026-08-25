@@ -19,8 +19,8 @@ export async function generateMetadata({ params }: BlogPageProps): Promise<Metad
   const trip = MOCK_TRIPS.find((t) => t.slug === tripSlug) || MOCK_TRIPS[0];
   const user = MOCK_USER;
 
-  const title = `${trip.title} — ${user.displayName}'s Food Diary | ForkTrail`;
-  const description = trip.summary;
+  const title = `${trip.title} — ${user.displayName}'s Food Diary | Palatero`;
+  const description = `${user.displayName}'s magazine-style food journal for ${trip.title} in ${trip.destination}.`;
 
   return {
     title,
@@ -28,8 +28,8 @@ export async function generateMetadata({ params }: BlogPageProps): Promise<Metad
     openGraph: {
       title,
       description,
-      url: `https://forktrail.app/blog/${username}/${tripSlug}`,
-      siteName: 'ForkTrail',
+      url: `https://palatero.app/blog/${username}/${tripSlug}`,
+      siteName: 'Palatero',
       images: [
         {
           url: trip.coverUrl,
@@ -77,15 +77,15 @@ export default async function PublicBlogPage({ params }: BlogPageProps) {
           </Link>
 
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-[#FAF3E7] p-1 shadow-sm transition-transform group-hover:scale-105">
-              <Image src="/logo-mark.png" alt="ForkTrail Mark" width={28} height={28} className="h-full w-full object-contain" />
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-[#FAF3E7] p-1 shadow-sm transition-transform group-hover:scale-105">
+              <Image src="/logo-mark.png" alt="Palatero Mark" width={32} height={32} className="h-full w-full object-contain" />
             </div>
             <div>
-              <span className="font-serif text-base font-bold text-white block leading-tight">
-                Fork<span className="text-[#ff947a]">Trail</span>
+              <span className="font-serif text-lg font-bold text-white block leading-tight">
+                Palatero
               </span>
-              <span className="block text-[9px] uppercase tracking-widest text-[#E3A857] font-semibold">
-                Your Culinary Journey
+              <span className="block text-[10px] tracking-wide text-[#ff947a] font-semibold">
+                Taste the story.
               </span>
             </div>
           </Link>
@@ -280,15 +280,15 @@ export default async function PublicBlogPage({ params }: BlogPageProps) {
       {/* Footer */}
       <footer className="hidden md:block border-t border-[#013b40] bg-[#025259] py-12 text-center text-xs text-[#FAF3E7] space-y-3">
         <div className="flex justify-center items-center gap-3">
-          <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-[#FAF3E7] p-1 shadow-sm">
-            <Image src="/logo-mark.png" alt="ForkTrail Logo" width={28} height={28} className="h-full w-full object-contain" />
+          <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-[#FAF3E7] p-1 shadow-sm">
+            <Image src="/logo-mark.png" alt="Palatero Logo" width={32} height={32} className="h-full w-full object-contain" />
           </div>
           <div className="text-left">
-            <span className="font-serif font-bold text-base text-white block leading-tight">ForkTrail</span>
-            <span className="text-[10px] uppercase tracking-widest text-[#E3A857] font-semibold block">Your Culinary Journey</span>
+            <span className="font-serif font-bold text-base text-white block leading-tight">Palatero</span>
+            <span className="text-[10px] tracking-wide text-[#ff947a] font-semibold block">Taste the story.</span>
           </div>
         </div>
-        <p>Published by @{user.username} on ForkTrail — Culinary Travel Diary & Food Blogging Platform</p>
+        <p>Published by @{user.username} on Palatero — Taste the story.</p>
       </footer>
 
     </div>

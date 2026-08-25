@@ -15,7 +15,7 @@ export async function loginWithGoogle(): Promise<User | null> {
     return {
       uid: 'demo_user_123',
       displayName: 'Food Explorer',
-      email: 'explorer@forktrail.app',
+      email: 'explorer@palatero.app',
       photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
     } as unknown as User;
   }

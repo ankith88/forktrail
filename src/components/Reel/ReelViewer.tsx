@@ -72,7 +72,7 @@ export function ReelViewer({ tripTitle, reelData, onClose, onOpenOccasionModal }
   const handleSocialShare = (platform: 'whatsapp' | 'twitter' | 'facebook') => {
     if (typeof window === 'undefined') return;
     const url = encodeURIComponent(window.location.href);
-    const text = encodeURIComponent(`Check out this AI Culinary Story Reel for "${reelData.headline}" on ForkTrail! 🍷✨`);
+    const text = encodeURIComponent(`Check out this AI Culinary Story Reel for "${reelData.headline}" on Palatero! 🍷✨`);
 
     let shareUrl = '';
     if (platform === 'whatsapp') shareUrl = `https://api.whatsapp.com/send?text=${text}%20${url}`;
@@ -90,7 +90,7 @@ export function ReelViewer({ tripTitle, reelData, onClose, onOpenOccasionModal }
     setTimeout(() => {
       const element = document.createElement('a');
       const blob = new Blob([
-        `FORKTRAIL 30-SECOND STORY REEL MP4 EXPORT\nHeadline: ${reelData.headline}\nOccasion: ${reelData.occasionPrompt || 'Culinary Tour'}\nStops: ${reelData.slides.length} Venues`
+        `PALATERO 30-SECOND STORY REEL MP4 EXPORT\nHeadline: ${reelData.headline}\nOccasion: ${reelData.occasionPrompt || 'Culinary Tour'}\nStops: ${reelData.slides.length} Venues`
       ], { type: 'video/mp4' });
       element.href = URL.createObjectURL(blob);
       element.download = `${tripTitle.toLowerCase().replace(/\s+/g, '_')}_30s_story_reel.mp4`;
@@ -217,12 +217,18 @@ export function ReelViewer({ tripTitle, reelData, onClose, onOpenOccasionModal }
           </div>
 
           <div>
+            {currentSlide.dishName && (
+              <div className="inline-flex items-center gap-1.5 mb-1.5 rounded-xl bg-[#ff947a] border border-[#ff947a] px-3 py-1 text-xs font-extrabold text-[#025259] shadow-md">
+                <Utensils className="h-3.5 w-3.5" />
+                <span>Featured Dish: {currentSlide.dishName}</span>
+              </div>
+            )}
             <h3 className="font-serif font-extrabold text-2xl sm:text-3xl text-white tracking-tight leading-tight">
               {currentSlide.venueName}
             </h3>
             <p className="text-xs text-[#FAF3E7] flex items-center gap-1 mt-0.5">
               <MapPin className="h-3.5 w-3.5 text-[#ff947a]" />
-              <span>{currentSlide.category} • Tokyo Culinary Stop</span>
+              <span>{currentSlide.category} • Culinary Stop</span>
             </p>
           </div>
 

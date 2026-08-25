@@ -32,7 +32,7 @@ export async function POST(request: Request) {
             recommendedDish: p.recommendedDish,
           }));
 
-          const prompt = `You are an elite culinary palate analyzer AI for ForkTrail.
+          const prompt = `You are an elite culinary palate analyzer AI for Palatero.
 Analyze the user's dining history (visited places with ratings and tasting notes):
 ${JSON.stringify(placesSummary, null, 2)}
 User Favorite Cuisines: ${favoriteCuisines.join(', ')}
@@ -100,7 +100,7 @@ Return ONLY JSON matching:
     if (apiKey && apiKey !== 'your_gemini_api_key') {
       try {
         const ai = new GoogleGenAI({ apiKey });
-        const prompt = `You are ForkTrail's Palate Matchmaker AI.
+        const prompt = `You are Palatero's Palate Matchmaker AI.
 Compare the user's Taste Profile with the target venue metadata:
 
 User Taste Profile:

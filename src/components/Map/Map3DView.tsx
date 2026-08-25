@@ -23,7 +23,7 @@ const mapContainerStyle = {
 // Default fallback city center (Sydney CBD) if geolocation unavailable and no places logged
 const DEFAULT_CENTER = { lat: -33.8688, lng: 151.2093 };
 
-// Vector map style tailored to ForkTrail's #FDF8F0 Warm Cream & #025259 Deep Pine palette
+// Vector map style tailored to Palatero's #FDF8F0 Warm Cream & #025259 Deep Pine palette
 const map3DVectorStyle = [
   { elementType: 'geometry', stylers: [{ color: '#FDF8F0' }] },
   { elementType: 'labels.text.stroke', stylers: [{ color: '#FFFFFF' }] },

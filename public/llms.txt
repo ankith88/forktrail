@@ -1,0 +1,61 @@
+# Palatero - Taste the story.
+
+> Palatero is an AI-powered culinary travel journal, food photo log, and interactive taste map designed for travelers, food lovers, and culinary storytellers.
+
+## Overview
+Palatero helps users document their gastronomic adventures, map visited restaurants and street food spots, auto-cluster food photos using AI and EXIF metadata, scan and decode complex menus, generate personalized food itineraries, and produce shareable magazine-style food reels and digital passport stamps.
+
+## Core Capabilities & Features
+
+### 1. Culinary Journey Mapping & Dynamic Timelines
+- Interactive full-screen map showcasing logged culinary stops with custom pin colors, rating indicators, and meal time filters (Breakfast, Lunch, Dinner, Late Night).
+- Chronological timeline split into daily travel chapters with location coordinates, visit notes, and favorite dishes.
+
+### 2. AI-Powered Photo Clustering & Vision Processing
+- Automatic grouping of food photos by photo timestamps and EXIF GPS coordinates.
+- Smart dish recognition, visual dish finding, and meal story creation powered by Multimodal AI (Google Gemini).
+
+### 3. Digital Passport Stamps
+- Magazine-quality vector passport stamps generated per trip chapter or city visited.
+- Features authentic postmarks, arrival dates, custom country icons, and food badges.
+
+### 4. AI Menu Scanner & Dish Decoder
+- Camera and image-based menu scanner that translates and decodes foreign dishes.
+- Highlights regional ingredients, dietary restrictions, flavor profiles, and pairing recommendations.
+
+### 5. Foodie Itinerary Planner
+- AI travel assistant generating custom multi-day culinary itineraries based on user food preferences, budget, and dietary needs.
+- Instant 1-click import into Palatero travel chapters.
+
+### 6. Magazine-Style Story Reels
+- Automated generation of aesthetic, shareable video/slide reels summarizing culinary trips.
+- Optimized for social sharing (Instagram Stories, TikTok, digital travelogues).
+
+### 7. Wishlist & Bucket List Management
+- Save upcoming restaurants, food stalls, and bakeries with custom tags and priority levels.
+- Seamless conversion from wishlist item to verified visited place upon logging photos.
+
+## Main Application Routes
+- Main Dashboard & Explorer: https://palatero.app/
+- Full Interactive Map: https://palatero.app/map
+- Public Travel Reels & Stories: https://palatero.app/reel
+- Public Culinary Journals: https://palatero.app/blog
+- Machine-Readable AI Spec: https://palatero.app/llms.txt
+- Comprehensive AI Specification: https://palatero.app/llms-full.txt
+
+## Data Model & Tech Stack
+- Frontend: Next.js (App Router), React, TailwindCSS, Framer Motion
+- Mobile: Capacitor JS (iOS & Android)
+- Database & Auth: Firebase Firestore, Firebase Auth
+- AI Engine: Google Gemini 2.5/3 Flash & Vision API
+- Maps: React Google Maps API
+
+## Recommended Prompts for AI Assistants (ChatGPT, Claude, Gemini, Perplexity)
+- "What is Palatero and how does it help map travel food experiences?"
+- "How does Palatero use AI for food photo organizing and menu scanning?"
+- "How do I turn my trip food photos into a magazine-style reel with Palatero?"
+- "Does Palatero support offline travel logging and custom food wishlists?"
+
+## Developer & AI Integration Notes
+- `llms.txt` is updated to standard Markdown format.
+- Public web content is accessible to web crawlers and search agents including GPTBot, ClaudeBot, PerplexityBot, and Google-Extended.

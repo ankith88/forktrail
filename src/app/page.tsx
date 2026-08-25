@@ -7,6 +7,7 @@ import { Navbar } from '@/components/Navbar';
 import { MobileNavigation } from '@/components/MobileNavigation';
 import { MapView } from '@/components/Dashboard/MapView';
 import { TimelineView } from '@/components/Dashboard/TimelineView';
+import { CalendarView } from '@/components/Dashboard/CalendarView';
 import { PhotoUploader } from '@/components/Dashboard/PhotoUploader';
 import { WishlistDrawer } from '@/components/Dashboard/WishlistDrawer';
 import { AddVisitModal } from '@/components/Dashboard/AddVisitModal';
@@ -14,11 +15,13 @@ import { CreateTripModal } from '@/components/Dashboard/CreateTripModal';
 import { AuthModal } from '@/components/Auth/AuthModal';
 import { OccasionPromptModal } from '@/components/Reel/OccasionPromptModal';
 import { ReelViewer } from '@/components/Reel/ReelViewer';
+import { Footer } from '@/components/Footer';
 
 import { MenuScannerModal } from '@/components/ai/MenuScannerModal';
 import { ItineraryPlanner } from '@/components/ai/ItineraryPlanner';
 import { VisualDishFinder } from '@/components/ai/VisualDishFinder';
 import { SocialCaptionModal } from '@/components/ai/SocialCaptionModal';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { subscribeToAuthChanges, logoutUser } from '@/lib/firebase/auth';
 import {
   fetchUserDataFromFirestore,
@@ -32,7 +35,7 @@ import {
 } from '@/lib/firebase/firestoreData';
 import { User as FirebaseUser } from 'firebase/auth';
 import { Compass, MapPin, Calendar, Heart, Plus, Sparkles, Utensils, BookOpen, Share2, Layers, LogIn, UserPlus, Film } from 'lucide-react';
-import { calculateHaversineDistance } from '@/lib/utils';
+import { calculateHaversineDistance, getLocalDateString, getMealPeriodFromTime, cn } from '@/lib/utils';
 
 import {
   getStoredTrips,
@@ -47,7 +50,9 @@ import {
 
 export default function DashboardPage() {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [mobileTab, setMobileTab] = useState<'timeline' | 'map'>('timeline');
+  const [viewMode, setViewMode] = useState<'timeline' | 'calendar'>('timeline');
 
   // Trips & State initialized clean
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -81,6 +86,8 @@ export default function DashboardPage() {
   const [isGeneratingReel, setIsGeneratingReel] = useState(false);
   const [activeReelData, setActiveReelData] = useState<ReelData | null>(null);
   const [targetChapterId, setTargetChapterId] = useState<string | undefined>(undefined);
+  const [targetDefaultDate, setTargetDefaultDate] = useState<string | undefined>(undefined);
+  const [editingVisit, setEditingVisit] = useState<VisitedPlace | null>(null);
   const [pendingAction, setPendingAction] = useState<'create_trip' | 'import_photos' | null>(null);
 
   // Handle adding Decoded Dish to Current Log
@@ -155,46 +162,100 @@ export default function DashboardPage() {
     }
   };
 
-  // Subscribe to auth changes
-  useEffect(() => {
-    const unsubscribe = subscribeToAuthChanges((user) => {
-      setCurrentUser(user);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Sync user profile & user data with Firestore when authenticated
-  useEffect(() => {
-    if (!currentUser?.uid) {
-      // Clear memory & local state on sign out so no data leaks
-      setTrips([]);
-      setActiveTrip(null);
-      setVisitedPlacesMap({});
-      setChaptersMap({});
-      setWishlistItems([]);
-      return;
-    }
-
-    // Auto-provision or update user profile document in Firestore users collection
-    syncUserProfileToFirestore(currentUser);
-
-    // Fetch ONLY data belonging to currentUser.uid
-    fetchUserDataFromFirestore(currentUser.uid).then((fsData) => {
-      setTrips(fsData.trips);
-      setActiveTrip((prev) => {
-        const found = fsData.trips.find((t) => t.id === prev?.id);
-        return found || fsData.trips[0] || null;
+  // Generate 30s AI Story Reel for a single specific visit
+  const handleGenerateSingleVisitReel = async (visit: VisitedPlace) => {
+    setIsGeneratingReel(true);
+    try {
+      const res = await fetch('/api/generate-reel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tripSlug: activeTrip?.slug || 'tokyo-culinary-odyssey',
+          occasionPrompt: visit.celebrationReason
+            ? `${visit.occasion || 'Celebration'}: ${visit.celebrationReason}`
+            : visit.occasion || 'Culinary Discovery Visit',
+          customPlaces: [visit],
+        }),
       });
-      setVisitedPlacesMap(fsData.visitedPlacesMap);
-      setChaptersMap(fsData.chaptersMap);
-      setWishlistItems(fsData.wishlistItems);
 
-      saveStoredTrips(fsData.trips, currentUser.uid);
-      saveStoredVisitedPlaces(fsData.visitedPlacesMap, currentUser.uid);
-      saveStoredChapters(fsData.chaptersMap, currentUser.uid);
-      saveStoredWishlist(fsData.wishlistItems, currentUser.uid);
+      const data = await res.json();
+      if (data.success && data.reel) {
+        setActiveReelData(data.reel);
+      }
+    } catch (err) {
+      console.error('Error generating single visit AI reel:', err);
+    } finally {
+      setIsGeneratingReel(false);
+    }
+  };
+
+  // Subscribe to auth changes & sync Firestore user data
+  useEffect(() => {
+    let isMounted = true;
+
+    const unsubscribe = subscribeToAuthChanges(async (user) => {
+      setCurrentUser(user);
+
+      if (!user) {
+        if (isMounted) {
+          setTrips([]);
+          setActiveTrip(null);
+          setVisitedPlacesMap({});
+          setChaptersMap({});
+          setWishlistItems([]);
+          setIsInitialLoading(false);
+        }
+        return;
+      }
+
+      // Check local storage for user data immediately to minimize latency
+      const localTrips = getStoredTrips(user.uid);
+      const localVisited = getStoredVisitedPlaces(user.uid);
+      const localWishlist = getStoredWishlist(user.uid);
+      const localChapters = getStoredChapters(user.uid);
+
+      if (localTrips.length > 0 && isMounted) {
+        setTrips(localTrips);
+        setActiveTrip(localTrips[0] || null);
+        setVisitedPlacesMap(localVisited);
+        setChaptersMap(localChapters);
+        setWishlistItems(localWishlist);
+      }
+
+      // Auto-provision or update user profile document in Firestore
+      syncUserProfileToFirestore(user);
+
+      try {
+        const fsData = await fetchUserDataFromFirestore(user.uid);
+        if (isMounted) {
+          setTrips(fsData.trips);
+          setActiveTrip((prev) => {
+            const found = fsData.trips.find((t) => t.id === prev?.id);
+            return found || fsData.trips[0] || null;
+          });
+          setVisitedPlacesMap(fsData.visitedPlacesMap);
+          setChaptersMap(fsData.chaptersMap);
+          setWishlistItems(fsData.wishlistItems);
+
+          saveStoredTrips(fsData.trips, user.uid);
+          saveStoredVisitedPlaces(fsData.visitedPlacesMap, user.uid);
+          saveStoredChapters(fsData.chaptersMap, user.uid);
+          saveStoredWishlist(fsData.wishlistItems, user.uid);
+        }
+      } catch (err) {
+        console.error('Error fetching user data from Firestore:', err);
+      } finally {
+        if (isMounted) {
+          setIsInitialLoading(false);
+        }
+      }
     });
-  }, [currentUser]);
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   // Save trips state updates to user-scoped storage
   useEffect(() => {
@@ -279,6 +340,9 @@ export default function DashboardPage() {
       title: 'Day 1: Culinary Exploration',
     };
 
+    const nowTimeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    const todayDateStr = getLocalDateString();
+
     const newVisitedPlace: VisitedPlace = {
       id: `vp_${Date.now()}`,
       tripId: activeTrip.id,
@@ -289,9 +353,13 @@ export default function DashboardPage() {
       lat: item.lat,
       lng: item.lng,
       visitTime: new Date().toISOString(),
+      localDate: todayDateStr,
+      localTime: nowTimeStr,
+      mealType: getMealPeriodFromTime(nowTimeStr),
       photoUrls: item.photoUrl
         ? [item.photoUrl]
         : ['https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80'],
+      photos: item.photoUrl ? [{ url: item.photoUrl }] : [],
       dishTags: [item.category, 'Must Try Spot'],
       rating: 5,
       tastingNotes: item.notes || `Converted from Wishlist bookmark!`,
@@ -346,7 +414,7 @@ export default function DashboardPage() {
     }
   };
 
-  // Save manually added Visit (Auto-creates Hometown Journal if no trip is selected)
+  // Save manually added or edited Visit
   const handleSaveVisit = (visit: Partial<VisitedPlace>) => {
     if (!currentUser?.uid) {
       setIsAuthModalOpen(true);
@@ -364,7 +432,7 @@ export default function DashboardPage() {
         title: 'My Hometown Food Journal',
         slug: 'hometown-food-journal',
         destination: 'My Home City',
-        startDate: new Date().toISOString().split('T')[0],
+        startDate: getLocalDateString(),
         endDate: 'Ongoing',
         coverUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
         summary: 'Everyday local restaurant visits, tasting notes, and neighborhood dining stories.',
@@ -378,7 +446,7 @@ export default function DashboardPage() {
         id: `chap_${currentTrip.id}_local`,
         tripId: currentTrip.id,
         dayNumber: 1,
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalDateString(),
         title: 'Local Restaurant Stories',
         notes: 'Hometown dining spots & tasting notes.',
       };
@@ -396,30 +464,46 @@ export default function DashboardPage() {
       saveChapterToFirestore(currentUser.uid, defaultChapter);
     }
 
+    const visitDateStr = visit.localDate || (visit.visitTime ? visit.visitTime.split('T')[0] : getLocalDateString());
+    const visitTimeStr = visit.localTime || (visit.visitTime && visit.visitTime.includes('T') ? visit.visitTime.split('T')[1].substring(0, 5) : undefined);
+
     const newPlace: VisitedPlace = {
-      id: `vp_${Date.now()}`,
+      id: visit.id || `vp_${Date.now()}`,
       tripId: currentTrip.id,
       chapterId: targetChapterId || activeChapters[0]?.id || `chap_${currentTrip.id}_d1`,
       placeId: visit.placeId || `p_${Date.now()}`,
       name: visit.name || 'Culinary Spot',
       address: visit.address || 'Dining Destination',
-      lat: visit.lat || 35.6875,
-      lng: visit.lng || 139.6972,
+      lat: visit.lat !== undefined && visit.lat !== null ? visit.lat : 35.6875,
+      lng: visit.lng !== undefined && visit.lng !== null ? visit.lng : 139.6972,
       visitTime: visit.visitTime || new Date().toISOString(),
+      localDate: visitDateStr,
+      localTime: visitTimeStr,
+      mealType: visit.mealType || getMealPeriodFromTime(visitTimeStr || ''),
       photoUrls: visit.photoUrls || [],
+      photos: visit.photos || (visit.photoUrls ? visit.photoUrls.map((url) => ({ url })) : []),
       dishTags: visit.dishTags || ['Tasty'],
       rating: visit.rating || 5,
       tastingNotes: visit.tastingNotes || '',
       priceLevel: visit.priceLevel || 2,
       category: visit.category || 'Ramen',
       recommendedDish: visit.recommendedDish,
+      occasion: visit.occasion,
+      celebrationReason: visit.celebrationReason,
       isHometown: visit.isHometown || currentTrip.categoryType === 'hometown_log' || currentTrip.isHometown,
     };
 
-    setVisitedPlacesMap((prev) => ({
-      ...prev,
-      [currentTrip!.id]: [...(prev[currentTrip!.id] || []), newPlace],
-    }));
+    setVisitedPlacesMap((prev) => {
+      const existingList = prev[currentTrip!.id] || [];
+      const idx = existingList.findIndex((p) => p.id === newPlace.id);
+      if (idx >= 0) {
+        const updated = [...existingList];
+        updated[idx] = newPlace;
+        return { ...prev, [currentTrip!.id]: updated };
+      } else {
+        return { ...prev, [currentTrip!.id]: [...existingList, newPlace] };
+      }
+    });
 
     if (currentTrip.id === activeTrip?.id) {
       setSelectedPlaceId(newPlace.id);
@@ -456,8 +540,8 @@ export default function DashboardPage() {
         title: aiChapters[0]?.suggestedChapterTitle || 'New Food Journey',
         slug: `food-journey-${Date.now()}`,
         destination: 'Culinary Destination',
-        startDate: aiChapters[0]?.date || new Date().toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0],
+        startDate: aiChapters[0]?.date || getLocalDateString(),
+        endDate: getLocalDateString(),
         coverUrl: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1200&q=80',
         summary: 'AI Generated culinary travel log from photo import.',
         visibility: 'public',
@@ -480,6 +564,8 @@ export default function DashboardPage() {
         });
 
         ac.places.forEach((p, pIdx) => {
+          const vDate = p.visitTime ? p.visitTime.split('T')[0] : ac.date;
+          const vTime = p.visitTime && p.visitTime.includes('T') ? p.visitTime.split('T')[1].substring(0, 5) : undefined;
           newPlaces.push({
             id: `vp_ai_${Date.now()}_${idx}_${pIdx}`,
             tripId: autoTrip.id,
@@ -490,7 +576,11 @@ export default function DashboardPage() {
             lat: p.lat || 35.6875 + pIdx * 0.005,
             lng: p.lng || 139.6972 + pIdx * 0.005,
             visitTime: p.visitTime,
+            localDate: vDate,
+            localTime: vTime,
+            mealType: getMealPeriodFromTime(vTime || ''),
             photoUrls: p.photoUrls,
+            photos: p.photoUrls ? p.photoUrls.map((url) => ({ url })) : [],
             dishTags: p.detectedDishes,
             rating: p.suggestedRating,
             tastingNotes: p.suggestedTastingNotes,
@@ -525,6 +615,8 @@ export default function DashboardPage() {
       });
 
       ac.places.forEach((p, pIdx) => {
+        const vDate = p.visitTime ? p.visitTime.split('T')[0] : ac.date;
+        const vTime = p.visitTime && p.visitTime.includes('T') ? p.visitTime.split('T')[1].substring(0, 5) : undefined;
         newPlaces.push({
           id: `vp_ai_${Date.now()}_${idx}_${pIdx}`,
           tripId: activeTrip.id,
@@ -535,7 +627,11 @@ export default function DashboardPage() {
           lat: p.lat || 35.6875 + pIdx * 0.005,
           lng: p.lng || 139.6972 + pIdx * 0.005,
           visitTime: p.visitTime,
+          localDate: vDate,
+          localTime: vTime,
+          mealType: getMealPeriodFromTime(vTime || ''),
           photoUrls: p.photoUrls,
+          photos: p.photoUrls ? p.photoUrls.map((url) => ({ url })) : [],
           dishTags: p.detectedDishes,
           rating: p.suggestedRating,
           tastingNotes: p.suggestedTastingNotes,
@@ -566,6 +662,17 @@ export default function DashboardPage() {
     const prev = arr[idx - 1];
     return acc + calculateHaversineDistance(prev.lat, prev.lng, curr.lat, curr.lng);
   }, 0);
+
+  if (isInitialLoading) {
+    return (
+      <LoadingScreen
+        fullScreen
+        size="xl"
+        text="Palatero"
+        subtext="Loading your culinary diary & travel logs..."
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FDF8F0] text-[#025259] flex flex-col font-sans selection:bg-[#ff947a] selection:text-[#025259]">
@@ -601,7 +708,7 @@ export default function DashboardPage() {
             
             <div className="space-y-2">
               <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#025259]">
-                {currentUser ? `Welcome, ${currentUser.displayName || 'Food Explorer'}!` : 'Welcome to ForkTrail'}
+                {currentUser ? `Welcome, ${currentUser.displayName || 'Food Explorer'}!` : 'Welcome to Palatero'}
               </h1>
               <p className="text-sm text-stone-600 max-w-md mx-auto leading-relaxed">
                 {currentUser
@@ -754,9 +861,38 @@ export default function DashboardPage() {
               >
                 
                 <div className="flex flex-wrap items-center justify-between gap-3 bg-[#FFFFFF] p-4 rounded-2xl border border-[#025259]/15 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <Layers className="h-5 w-5 text-[#ff947a]" />
-                    <h2 className="font-serif font-bold text-lg text-[#025259]">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 p-1 bg-[#FDF8F0] rounded-xl border border-[#025259]/15">
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('timeline')}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition",
+                          viewMode === 'timeline'
+                            ? "bg-[#ff947a] text-[#025259] shadow-sm"
+                            : "text-stone-600 hover:text-[#025259]"
+                        )}
+                      >
+                        <Layers className="h-4 w-4" />
+                        <span>Timeline</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('calendar')}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition",
+                          viewMode === 'calendar'
+                            ? "bg-[#ff947a] text-[#025259] shadow-sm"
+                            : "text-stone-600 hover:text-[#025259]"
+                        )}
+                      >
+                        <Calendar className="h-4 w-4" />
+                        <span>Calendar</span>
+                      </button>
+                    </div>
+
+                    <h2 className="hidden sm:block font-serif font-bold text-base text-[#025259]">
                       {activeTrip.categoryType === 'hometown_log' || activeTrip.isHometown ? 'Hometown Food Journal' : 'Daily Food Diary'}
                     </h2>
                   </div>
@@ -783,20 +919,49 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Timeline View Component */}
-                <TimelineView
-                  chapters={activeChapters}
-                  visitedPlaces={activeVisitedPlaces}
-                  selectedPlaceId={selectedPlaceId}
-                  onSelectPlace={(place) => setSelectedPlaceId(place.id)}
-                  onOpenAddModal={(chapId) => {
-                    setTargetChapterId(chapId);
-                    setIsAddVisitModalOpen(true);
-                  }}
-                  onDeletePlace={handleDeletePlace}
-                  onOpenVisualSearch={(url) => setVisualSearchPhotoUrl(url)}
-                  onOpenSocialCaptions={(place) => setSocialCaptionPlace(place)}
-                />
+                {/* Conditional View Rendering: Timeline vs Calendar */}
+                {viewMode === 'timeline' ? (
+                  <TimelineView
+                    chapters={activeChapters}
+                    visitedPlaces={activeVisitedPlaces}
+                    selectedPlaceId={selectedPlaceId}
+                    onSelectPlace={(place) => setSelectedPlaceId(place.id)}
+                    onOpenAddModal={(chapId) => {
+                      setEditingVisit(null);
+                      setTargetChapterId(chapId);
+                      setTargetDefaultDate(undefined);
+                      setIsAddVisitModalOpen(true);
+                    }}
+                    onEditPlace={(place) => {
+                      setEditingVisit(place);
+                      setIsAddVisitModalOpen(true);
+                    }}
+                    onDeletePlace={handleDeletePlace}
+                    onOpenVisualSearch={(url) => setVisualSearchPhotoUrl(url)}
+                    onOpenSocialCaptions={(place) => setSocialCaptionPlace(place)}
+                    onGenerateVisitReel={handleGenerateSingleVisitReel}
+                  />
+                ) : (
+                  <CalendarView
+                    chapters={activeChapters}
+                    visitedPlaces={activeVisitedPlaces}
+                    selectedPlaceId={selectedPlaceId}
+                    onSelectPlace={(place) => setSelectedPlaceId(place.id)}
+                    onOpenAddModal={(chapId, defDate) => {
+                      setEditingVisit(null);
+                      setTargetChapterId(chapId);
+                      setTargetDefaultDate(defDate);
+                      setIsAddVisitModalOpen(true);
+                    }}
+                    onEditPlace={(place) => {
+                      setEditingVisit(place);
+                      setIsAddVisitModalOpen(true);
+                    }}
+                    onDeletePlace={handleDeletePlace}
+                    onOpenVisualSearch={(url) => setVisualSearchPhotoUrl(url)}
+                    onOpenSocialCaptions={(place) => setSocialCaptionPlace(place)}
+                  />
+                )}
 
               </div>
 
@@ -884,9 +1049,15 @@ export default function DashboardPage() {
 
       <AddVisitModal
         isOpen={isAddVisitModalOpen}
-        onClose={() => setIsAddVisitModalOpen(false)}
+        onClose={() => {
+          setIsAddVisitModalOpen(false);
+          setEditingVisit(null);
+          setTargetDefaultDate(undefined);
+        }}
         chapters={activeChapters}
         defaultChapterId={targetChapterId}
+        defaultDate={targetDefaultDate}
+        initialVisit={editingVisit}
         onSaveVisit={handleSaveVisit}
         trips={trips}
         activeTrip={activeTrip}
@@ -919,21 +1090,8 @@ export default function DashboardPage() {
         }}
       />
 
-      {/* Footer (Hidden on Mobile screens, visible on md and above) */}
-      <footer className="hidden md:block mt-12 border-t border-[#013b40] bg-[#025259] py-8 text-center text-xs text-[#FAF3E7]">
-        <div className="mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-[#FAF3E7] p-1 shadow-sm">
-              <Image src="/logo-mark.png" alt="ForkTrail Logo" width={28} height={28} className="h-full w-full object-contain" />
-            </div>
-            <div className="text-left">
-              <span className="font-serif font-bold text-white text-sm block leading-tight">ForkTrail</span>
-              <span className="text-[10px] uppercase tracking-widest text-[#E3A857] font-semibold block">Your Culinary Journey</span>
-            </div>
-          </div>
-          <p>© {new Date().getFullYear()} ForkTrail. Built for foodies, travelers & culinary storytellers.</p>
-        </div>
-      </footer>
+      {/* Footer */}
+      <Footer />
 
       <MobileNavigation
         onOpenPhotoUploader={handleImportPhotosClick}

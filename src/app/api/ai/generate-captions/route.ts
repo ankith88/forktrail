@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     if (apiKey && apiKey !== 'your_gemini_api_key') {
       try {
         const ai = new GoogleGenAI({ apiKey });
-        const prompt = `You are an elite food & travel writer AI for ForkTrail.
+        const prompt = `You are an elite food & travel writer AI for Palatero.
 Synthesize the following venue details into 4 distinct customizable caption formats:
 
 Venue Details:
@@ -62,8 +62,8 @@ Return ONLY a JSON object:
 
     // Fallback Styled Captions Synthesis
     const fallbackCaptions: SocialCaptions = {
-      instagram: `Found my new favorite spot in ${city}! ✨🍜\n\n${venueName} blew me away. ${tastingNotes}\n\n⭐ ${rating}/5 Stars\n📌 Must Order: ${recommendedDish}\n\n.#ForkTrail #CulinaryTravel #${city}Eats #FoodieGram #Gastronomy #${category.replace(/\s+/g, '')}`,
-      twitter: `If you're in ${city}, do not sleep on ${venueName}. ${rating}/5 ⭐. The ${recommendedDish} is mandatory. ${tastingNotes.slice(0, 100)}... #ForkTrail`,
+      instagram: `Found my new favorite spot in ${city}! ✨🍜\n\n${venueName} blew me away. ${tastingNotes}\n\n⭐ ${rating}/5 Stars\n📌 Must Order: ${recommendedDish}\n\n.#Palatero #TasteTheStory #${city}Eats #FoodieGram #Gastronomy #${category.replace(/\s+/g, '')}`,
+      twitter: `If you're in ${city}, do not sleep on ${venueName}. ${rating}/5 ⭐. The ${recommendedDish} is mandatory. ${tastingNotes.slice(0, 100)}... #Palatero #TasteTheStory`,
       substack: `Tucked into the backstreets of ${city}, ${venueName} represents the pinnacle of modern ${category.toLowerCase()}. What strikes you first is the intention behind every detail. The ${recommendedDish} arrives with quiet confidence—${tastingNotes.toLowerCase()} It is the kind of culinary experience that stays with you long after the table is cleared.`,
       bourdain: `You don't just stumble upon a place like ${venueName}—you earn it. In a city as loud as ${city}, this counter serves food without pretense or performance. You bite into the ${recommendedDish}, and suddenly all the noise stops. Good food, cold drink, and the simple truth of craftsmanship. That's all that ever really mattered.`,
     };

@@ -56,3 +56,45 @@ body {
 .animate-spin-slow {
   animation: spinSlow 12s linear infinite;
 }
+
+@keyframes logoPulse {
+  0%, 100% {
+    transform: scale(0.95);
+    filter: drop-shadow(0 0 16px rgba(255, 148, 122, 0.4));
+  }
+  50% {
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 28px rgba(255, 148, 122, 0.75));
+  }
+}
+
+@keyframes orbitSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmerBar {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-logo-pulse {
+  animation: logoPulse 2.2s ease-in-out infinite;
+}
+
+.animate-orbit-spin {
+  animation: orbitSpin 5s linear infinite;
+}
+
+.animate-shimmer-bar {
+  animation: shimmerBar 1.6s ease-in-out infinite;
+}
+

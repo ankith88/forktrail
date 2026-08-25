@@ -4,10 +4,10 @@ function getKey(baseKey: string, userId?: string | null): string {
   return userId ? `${baseKey}_${userId}` : baseKey;
 }
 
-const TRIPS_KEY = 'forktrail_user_trips';
-const VISITED_KEY = 'forktrail_user_visited';
-const WISHLIST_KEY = 'forktrail_user_wishlist';
-const CHAPTERS_KEY = 'forktrail_user_chapters';
+const TRIPS_KEY = 'palatero_user_trips';
+const VISITED_KEY = 'palatero_user_visited';
+const WISHLIST_KEY = 'palatero_user_wishlist';
+const CHAPTERS_KEY = 'palatero_user_chapters';
 
 export function getStoredTrips(userId?: string | null): Trip[] {
   if (typeof window === 'undefined' || !userId) return [];

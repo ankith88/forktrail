@@ -1,0 +1,47 @@
+# https://www.robotstxt.org/robotstxt.html
+# Palatero - Taste the story. (AI Searchable & LLM Friendly)
+
+User-agent: *
+Allow: /
+Disallow: /api/private/
+
+# Explicitly welcome AI Search Crawlers & LLM Indexers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+# LLM Standard Documentation
+# See https://llmstxt.org/ for details
+# Markdown documentation for LLMs: https://palatero.app/llms.txt
+# Complete knowledge base: https://palatero.app/llms-full.txt
+
+Sitemap: https://palatero.app/sitemap.xml

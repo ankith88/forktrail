@@ -5,6 +5,8 @@ import { WishlistItem, ItineraryDay, VisitedPlace } from '@/types';
 import { X, Calendar, Clock, MapPin, Navigation, Sparkles, CheckSquare, Square, Loader2, Route, Utensils } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
+
 interface ItineraryPlannerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -192,12 +194,12 @@ export function ItineraryPlanner({
 
           {/* Loading Indicator */}
           {isOptimizing && (
-            <div className="rounded-2xl border border-[#025259]/20 bg-[#FFFFFF] p-10 text-center space-y-3">
-              <Loader2 className="h-8 w-8 animate-spin text-[#ff947a] mx-auto" />
-              <h4 className="text-sm font-bold text-[#025259]">Sequencing Dining Spots...</h4>
-              <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                Analyzing opening hours, optimal meal timings (morning coffee, lunch ramen, aperitivo, dinner, late cocktails) and geographic walkability.
-              </p>
+            <div className="rounded-2xl border border-[#025259]/20 bg-[#FFFFFF] p-8 text-center shadow-sm">
+              <LoadingScreen
+                size="md"
+                text="Sequencing Dining Route with AI..."
+                subtext="Optimizing opening hours, meal timings & geographic walkability"
+              />
             </div>
           )}
 

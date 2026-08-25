@@ -13,16 +13,37 @@ export async function parsePhotoEXIF(file: File): Promise<PhotoEXIFData> {
     if (exif) {
       const lat = exif.latitude || exif.lat;
       const lng = exif.longitude || exif.lon || exif.lng;
-      const timestamp = exif.DateTimeOriginal
-        ? new Date(exif.DateTimeOriginal).toISOString()
-        : exif.CreateDate
-        ? new Date(exif.CreateDate).toISOString()
+      const rawDate = exif.DateTimeOriginal || exif.CreateDate;
+
+      let localDate: string | undefined;
+      let localTime: string | undefined;
+
+      if (rawDate) {
+        if (typeof rawDate === 'string') {
+          // EXIF dates often format as "YYYY:MM:DD HH:MM:SS" or "YYYY-MM-DDTHH:MM:SS"
+          const clean = rawDate.replace(/^(\d{4}):(\d{2}):(\d{2})/, '$1-$2-$3');
+          const [dPart, tPart] = clean.split(/[ T]/);
+          if (dPart && dPart.includes('-')) localDate = dPart;
+          if (tPart && tPart.includes(':')) localTime = tPart.substring(0, 5);
+        } else if (rawDate instanceof Date) {
+          const y = rawDate.getFullYear();
+          const m = String(rawDate.getMonth() + 1).padStart(2, '0');
+          const d = String(rawDate.getDate()).padStart(2, '0');
+          localDate = `${y}-${m}-${d}`;
+          localTime = `${String(rawDate.getHours()).padStart(2, '0')}:${String(rawDate.getMinutes()).padStart(2, '0')}`;
+        }
+      }
+
+      const timestamp = rawDate
+        ? new Date(rawDate).toISOString()
         : new Date(file.lastModified).toISOString();
 
       return {
         fileName: file.name,
         previewUrl,
         timestamp,
+        localDate,
+        localTime,
         lat,
         lng,
         make: exif.Make,
