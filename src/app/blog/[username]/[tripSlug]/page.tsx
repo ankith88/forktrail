@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import { MOCK_USER, MOCK_TRIPS, MOCK_CHAPTERS, MOCK_VISITED_PLACES } from '@/lib/mockData';
 import { Compass, Calendar, MapPin, Star, Utensils, Tag, Heart, Share2, ArrowLeft, Award, Globe } from 'lucide-react';
 import { formatDate, calculateHaversineDistance } from '@/lib/utils';
@@ -75,13 +76,18 @@ export default async function PublicBlogPage({ params }: BlogPageProps) {
             <ArrowLeft className="h-4 w-4" /> Back to Dashboard
           </Link>
 
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#ff947a] text-[#025259]">
-              <Compass className="h-5 w-5 stroke-[2.5]" />
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-[#FAF3E7] p-1 shadow-sm transition-transform group-hover:scale-105">
+              <Image src="/logo-mark.png" alt="ForkTrail Mark" width={28} height={28} className="h-full w-full object-contain" />
             </div>
-            <span className="font-serif text-lg font-bold text-white">
-              Fork<span className="text-[#ff947a]">Trail</span>
-            </span>
+            <div>
+              <span className="font-serif text-base font-bold text-white block leading-tight">
+                Fork<span className="text-[#ff947a]">Trail</span>
+              </span>
+              <span className="block text-[9px] uppercase tracking-widest text-[#E3A857] font-semibold">
+                Your Culinary Journey
+              </span>
+            </div>
           </Link>
 
           <div className="flex items-center gap-2">
@@ -273,9 +279,14 @@ export default async function PublicBlogPage({ params }: BlogPageProps) {
 
       {/* Footer */}
       <footer className="border-t border-[#013b40] bg-[#025259] py-12 text-center text-xs text-[#FAF3E7] space-y-3">
-        <div className="flex justify-center items-center gap-2">
-          <Compass className="h-5 w-5 text-[#ff947a]" />
-          <span className="font-serif font-bold text-base text-white">ForkTrail</span>
+        <div className="flex justify-center items-center gap-3">
+          <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-[#FAF3E7] p-1 shadow-sm">
+            <Image src="/logo-mark.png" alt="ForkTrail Logo" width={28} height={28} className="h-full w-full object-contain" />
+          </div>
+          <div className="text-left">
+            <span className="font-serif font-bold text-base text-white block leading-tight">ForkTrail</span>
+            <span className="text-[10px] uppercase tracking-widest text-[#E3A857] font-semibold block">Your Culinary Journey</span>
+          </div>
         </div>
         <p>Published by @{user.username} on ForkTrail — Culinary Travel Diary & Food Blogging Platform</p>
       </footer>

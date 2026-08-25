@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { loginWithGoogle, registerWithEmail, loginWithEmail } from '@/lib/firebase/auth';
 import { X, LogIn, UserPlus, Mail, Lock, Sparkles, Loader2, Compass } from 'lucide-react';
 import { User } from 'firebase/auth';
@@ -67,15 +68,23 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
         
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#025259]/15 pb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ff947a] text-[#025259] shadow-sm">
-              <Compass className="h-5 w-5 stroke-[2.5]" />
+          <div className="flex items-center gap-3">
+            <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FAF3E7] p-1.5 border border-[#025259]/10 shadow-sm">
+              <Image
+                src="/logo-mark.png"
+                alt="ForkTrail Mark"
+                width={40}
+                height={40}
+                className="h-full w-full object-contain"
+              />
             </div>
             <div>
               <h2 className="text-base font-bold text-[#025259]">
                 {mode === 'register' ? 'Join ForkTrail' : 'Welcome Back'}
               </h2>
-              <p className="text-xs text-stone-500">Start logging your travel culinary adventures</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#E3A857]">
+                Your Culinary Journey
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="text-stone-400 hover:text-[#025259]">

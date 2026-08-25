@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Trip, TimelineChapter, VisitedPlace, WishlistItem, AIProcessedPhotoGroup, ReelData } from '@/types';
 import { Navbar } from '@/components/Navbar';
 import { MobileNavigation } from '@/components/MobileNavigation';
@@ -17,6 +18,17 @@ import { subscribeToAuthChanges, logoutUser } from '@/lib/firebase/auth';
 import { User as FirebaseUser } from 'firebase/auth';
 import { Compass, MapPin, Calendar, Heart, Plus, Sparkles, Utensils, BookOpen, Share2, Layers, LogIn, UserPlus, Film } from 'lucide-react';
 import { calculateHaversineDistance } from '@/lib/utils';
+
+import {
+  getStoredTrips,
+  saveStoredTrips,
+  getStoredVisitedPlaces,
+  saveStoredVisitedPlaces,
+  getStoredWishlist,
+  saveStoredWishlist,
+  getStoredChapters,
+  saveStoredChapters,
+} from '@/lib/storage';
 
 export default function DashboardPage() {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
@@ -100,15 +112,54 @@ export default function DashboardPage() {
     return () => unsubscribe();
   }, []);
 
-  // Handle creating a new trip
+  // Load stored user data on mount
+  useEffect(() => {
+    const loadedTrips = getStoredTrips();
+    const loadedVisitedMap = getStoredVisitedPlaces();
+    const loadedWishlist = getStoredWishlist();
+    const loadedChaptersMap = getStoredChapters();
+
+    if (loadedTrips.length > 0) {
+      setTrips(loadedTrips);
+      setActiveTrip(loadedTrips[0]);
+    }
+    setVisitedPlacesMap(loadedVisitedMap);
+    setWishlistItems(loadedWishlist);
+    setChaptersMap(loadedChaptersMap);
+  }, []);
+
+  // Save trips state updates
+  useEffect(() => {
+    if (trips.length > 0) {
+      saveStoredTrips(trips);
+    }
+  }, [trips]);
+
+  // Save visited places state updates
+  useEffect(() => {
+    saveStoredVisitedPlaces(visitedPlacesMap);
+  }, [visitedPlacesMap]);
+
+  // Save wishlist state updates
+  useEffect(() => {
+    saveStoredWishlist(wishlistItems);
+  }, [wishlistItems]);
+
+  // Save chapters state updates
+  useEffect(() => {
+    saveStoredChapters(chaptersMap);
+  }, [chaptersMap]);
+
+  // Handle creating a new trip or hometown food journal
   const handleCreateTrip = (newTrip: Trip) => {
+    const isHometown = newTrip.categoryType === 'hometown_log';
     const defaultChapter: TimelineChapter = {
       id: `chap_${newTrip.id}_d1`,
       tripId: newTrip.id,
       dayNumber: 1,
       date: newTrip.startDate,
-      title: 'Day 1: Culinary Discoveries',
-      notes: 'First day exploring local tasting spots and flavors.',
+      title: isHometown ? 'Local Dining & Neighborhood Eats' : 'Day 1: Culinary Discoveries',
+      notes: isHometown ? 'Favorite local restaurants, cafés, and hometown tasting notes.' : 'First day exploring local tasting spots and flavors.',
     };
 
     setTrips((prev) => [newTrip, ...prev]);
@@ -160,6 +211,7 @@ export default function DashboardPage() {
       tastingNotes: item.notes || `Converted from Wishlist bookmark!`,
       category: item.category,
       priceLevel: 2,
+      isHometown: activeTrip.categoryType === 'hometown_log',
     };
 
     setVisitedPlacesMap((prev) => ({
@@ -191,14 +243,52 @@ export default function DashboardPage() {
     setWishlistItems((prev) => [newItem, ...prev]);
   };
 
-  // Save manually added Visit
+  // Save manually added Visit (Auto-creates Hometown Journal if no trip is selected)
   const handleSaveVisit = (visit: Partial<VisitedPlace>) => {
-    if (!activeTrip) return;
+    let currentTrip = activeTrip;
+    let targetChapterId = visit.chapterId;
+
+    if (!currentTrip) {
+      // Auto-create default Hometown Food Journal
+      currentTrip = {
+        id: `hometown_${Date.now()}`,
+        userId: currentUser?.uid || 'user_active',
+        title: 'My Hometown Food Journal',
+        slug: 'hometown-food-journal',
+        destination: 'My Home City',
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: 'Ongoing',
+        coverUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
+        summary: 'Everyday local restaurant visits, tasting notes, and neighborhood dining stories.',
+        visibility: 'public',
+        createdAt: new Date().toISOString(),
+        categoryType: 'hometown_log',
+        isHometown: true,
+      };
+
+      const defaultChapter: TimelineChapter = {
+        id: `chap_${currentTrip.id}_local`,
+        tripId: currentTrip.id,
+        dayNumber: 1,
+        date: new Date().toISOString().split('T')[0],
+        title: 'Local Restaurant Stories',
+        notes: 'Hometown dining spots & tasting notes.',
+      };
+
+      setTrips((prev) => [currentTrip!, ...prev]);
+      setActiveTrip(currentTrip);
+      setChaptersMap((prev) => ({
+        ...prev,
+        [currentTrip!.id]: [defaultChapter],
+      }));
+
+      targetChapterId = defaultChapter.id;
+    }
 
     const newPlace: VisitedPlace = {
       id: `vp_${Date.now()}`,
-      tripId: activeTrip.id,
-      chapterId: visit.chapterId || activeChapters[0]?.id || 'chap_d1',
+      tripId: currentTrip.id,
+      chapterId: targetChapterId || activeChapters[0]?.id || `chap_${currentTrip.id}_d1`,
       placeId: visit.placeId || `p_${Date.now()}`,
       name: visit.name || 'Culinary Spot',
       address: visit.address || 'Dining Destination',
@@ -212,11 +302,12 @@ export default function DashboardPage() {
       priceLevel: visit.priceLevel || 2,
       category: visit.category || 'Ramen',
       recommendedDish: visit.recommendedDish,
+      isHometown: visit.isHometown || currentTrip.categoryType === 'hometown_log',
     };
 
     setVisitedPlacesMap((prev) => ({
       ...prev,
-      [activeTrip.id]: [...(prev[activeTrip.id] || []), newPlace],
+      [currentTrip!.id]: [...(prev[currentTrip!.id] || []), newPlace],
     }));
 
     setSelectedPlaceId(newPlace.id);
@@ -601,10 +692,14 @@ export default function DashboardPage() {
       {/* Footer */}
       <footer className="mt-12 border-t border-[#013b40] bg-[#025259] py-8 text-center text-xs text-[#FAF3E7]">
         <div className="mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Compass className="h-4 w-4 text-[#ff947a]" />
-            <span className="font-serif font-bold text-white">ForkTrail</span>
-            <span>— Culinary Travel & Food Blogging Platform</span>
+          <div className="flex items-center gap-3">
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-[#FAF3E7] p-1 shadow-sm">
+              <Image src="/logo-mark.png" alt="ForkTrail Logo" width={28} height={28} className="h-full w-full object-contain" />
+            </div>
+            <div className="text-left">
+              <span className="font-serif font-bold text-white text-sm block leading-tight">ForkTrail</span>
+              <span className="text-[10px] uppercase tracking-widest text-[#E3A857] font-semibold block">Your Culinary Journey</span>
+            </div>
           </div>
           <p>© {new Date().getFullYear()} ForkTrail. Built for foodies, travelers & culinary storytellers.</p>
         </div>

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Trip } from '@/types';
+import { getLocalDateString } from '@/lib/utils';
 import { X, Compass, Calendar, MapPin, Image as ImageIcon } from 'lucide-react';
 
 interface CreateTripModalProps {
@@ -11,10 +12,11 @@ interface CreateTripModalProps {
 }
 
 export function CreateTripModal({ isOpen, onClose, onCreateTrip }: CreateTripModalProps) {
+  const [categoryType, setCategoryType] = useState<'trip' | 'hometown_log'>('trip');
   const [title, setTitle] = useState('');
   const [destination, setDestination] = useState('');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(() => getLocalDateString());
+  const [endDate, setEndDate] = useState(() => getLocalDateString(new Date(Date.now() + 86400000 * 5)));
   const [coverUrl, setCoverUrl] = useState('https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1200&q=80');
   const [summary, setSummary] = useState('');
 
@@ -33,11 +35,15 @@ export function CreateTripModal({ isOpen, onClose, onCreateTrip }: CreateTripMod
       slug: slug || `trip-${Date.now()}`,
       destination,
       startDate,
-      endDate,
+      endDate: categoryType === 'hometown_log' ? 'Ongoing' : endDate,
       coverUrl: coverUrl || 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1200&q=80',
-      summary: summary || `A culinary journey exploring the best food, markets, and tasting spots in ${destination}.`,
+      summary: summary || (categoryType === 'hometown_log' 
+        ? `My personal hometown food journal exploring dining spots in ${destination}.`
+        : `A culinary journey exploring the best food, markets, and tasting spots in ${destination}.`),
       visibility: 'public',
       createdAt: new Date().toISOString(),
+      categoryType,
+      isHometown: categoryType === 'hometown_log',
     };
 
     onCreateTrip(newTrip);
@@ -54,7 +60,7 @@ export function CreateTripModal({ isOpen, onClose, onCreateTrip }: CreateTripMod
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ff947a] text-[#025259] shadow-sm">
               <Compass className="h-5 w-5 stroke-[2.5]" />
             </div>
-            <h2 className="text-base font-bold text-[#025259]">Start New Culinary Trip</h2>
+            <h2 className="text-base font-bold text-[#025259]">Create New Food Story Journal</h2>
           </div>
           <button onClick={onClose} className="text-stone-400 hover:text-[#025259]">
             <X className="h-5 w-5" />
@@ -63,27 +69,69 @@ export function CreateTripModal({ isOpen, onClose, onCreateTrip }: CreateTripMod
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           
+          {/* Story Container Type Selector */}
+          <div>
+            <label className="block text-[#025259] font-bold mb-1.5">Log / Story Type</label>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setCategoryType('trip');
+                  if (!title || title.includes('Hometown Food Log')) setTitle('Tokyo Ramen & Sushi Tour');
+                }}
+                className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all text-center ${
+                  categoryType === 'trip'
+                    ? 'border-[#ff947a] bg-[#ff947a]/15 text-[#025259] font-bold shadow-sm'
+                    : 'border-[#025259]/15 bg-[#FDF8F0] text-stone-600 hover:bg-[#025259]/5'
+                }`}
+              >
+                <span className="text-base mb-0.5">✈️ Travel Trip</span>
+                <span className="text-[10px] text-stone-500 font-normal">Multi-day vacation itinerary</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCategoryType('hometown_log');
+                  if (!title || title.includes('Tokyo')) setTitle('My Hometown Eats & Local Gems');
+                }}
+                className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all text-center ${
+                  categoryType === 'hometown_log'
+                    ? 'border-[#ff947a] bg-[#ff947a]/15 text-[#025259] font-bold shadow-sm'
+                    : 'border-[#025259]/15 bg-[#FDF8F0] text-stone-600 hover:bg-[#025259]/5'
+                }`}
+              >
+                <span className="text-base mb-0.5">🏠 Hometown Food Log</span>
+                <span className="text-[10px] text-stone-500 font-normal">Ongoing local dining journal</span>
+              </button>
+            </div>
+          </div>
+
           {/* Trip Title & Destination */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label htmlFor="create-trip-title" className="block text-[#025259] font-bold mb-1">Trip Title</label>
+              <label htmlFor="create-trip-title" className="block text-[#025259] font-bold mb-1">
+                {categoryType === 'hometown_log' ? 'Journal Title' : 'Trip Title'}
+              </label>
               <input
                 id="create-trip-title"
                 type="text"
                 required
-                placeholder="e.g. Tokyo Ramen & Sushi Tour"
+                placeholder={categoryType === 'hometown_log' ? 'e.g. My Hometown Eats' : 'e.g. Tokyo Ramen Tour'}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] focus:border-[#ff947a] focus:outline-none font-medium"
               />
             </div>
             <div>
-              <label htmlFor="create-trip-destination" className="block text-[#025259] font-bold mb-1">Destination / City</label>
+              <label htmlFor="create-trip-destination" className="block text-[#025259] font-bold mb-1">
+                {categoryType === 'hometown_log' ? 'Hometown / City' : 'Destination / City'}
+              </label>
               <input
                 id="create-trip-destination"
                 type="text"
                 required
-                placeholder="e.g. Tokyo, Japan"
+                placeholder={categoryType === 'hometown_log' ? 'e.g. Austin, TX' : 'e.g. Tokyo, Japan'}
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
                 className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] focus:border-[#ff947a] focus:outline-none font-medium"
@@ -92,9 +140,34 @@ export function CreateTripModal({ isOpen, onClose, onCreateTrip }: CreateTripMod
           </div>
 
           {/* Dates */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {categoryType === 'trip' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="create-trip-start-date" className="block text-[#025259] font-bold mb-1">Start Date</label>
+                <input
+                  id="create-trip-start-date"
+                  type="date"
+                  required
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] font-medium"
+                />
+              </div>
+              <div>
+                <label htmlFor="create-trip-end-date" className="block text-[#025259] font-bold mb-1">End Date</label>
+                <input
+                  id="create-trip-end-date"
+                  type="date"
+                  required
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] font-medium"
+                />
+              </div>
+            </div>
+          ) : (
             <div>
-              <label htmlFor="create-trip-start-date" className="block text-[#025259] font-bold mb-1">Start Date</label>
+              <label htmlFor="create-trip-start-date" className="block text-[#025259] font-bold mb-1">Journal Started Date</label>
               <input
                 id="create-trip-start-date"
                 type="date"
@@ -103,19 +176,9 @@ export function CreateTripModal({ isOpen, onClose, onCreateTrip }: CreateTripMod
                 onChange={(e) => setStartDate(e.target.value)}
                 className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] font-medium"
               />
+              <p className="text-[10px] text-stone-500 mt-1">Hometown logs are ongoing — visits are grouped by month & year.</p>
             </div>
-            <div>
-              <label htmlFor="create-trip-end-date" className="block text-[#025259] font-bold mb-1">End Date</label>
-              <input
-                id="create-trip-end-date"
-                type="date"
-                required
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] font-medium"
-              />
-            </div>
-          </div>
+          )}
 
           {/* Cover Photo */}
           <div>
@@ -132,11 +195,11 @@ export function CreateTripModal({ isOpen, onClose, onCreateTrip }: CreateTripMod
 
           {/* Summary */}
           <div>
-            <label htmlFor="create-trip-summary" className="block text-[#025259] font-bold mb-1">Trip Summary / Vibe</label>
+            <label htmlFor="create-trip-summary" className="block text-[#025259] font-bold mb-1">Journal Description / Vibe</label>
             <textarea
               id="create-trip-summary"
               rows={3}
-              placeholder="Exploring ramen alleys, outer markets, coffee roasteries, and izakayas..."
+              placeholder={categoryType === 'hometown_log' ? 'Favorite local brunch spots, coffee roasters, and dinner gems in my home city...' : 'Exploring ramen alleys, outer markets, coffee roasteries, and izakayas...'}
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] focus:border-[#ff947a] focus:outline-none"
@@ -155,7 +218,7 @@ export function CreateTripModal({ isOpen, onClose, onCreateTrip }: CreateTripMod
               type="submit"
               className="rounded-xl bg-[#ff947a] px-5 py-2 font-bold text-[#025259] hover:bg-[#f08368] transition shadow-md"
             >
-              Create Trip & Start Diary
+              {categoryType === 'hometown_log' ? 'Create Hometown Log' : 'Create Trip & Start Diary'}
             </button>
           </div>
 

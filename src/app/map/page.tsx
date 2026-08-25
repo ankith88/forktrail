@@ -1,24 +1,56 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { MOCK_TRIPS, MOCK_CHAPTERS, MOCK_VISITED_PLACES, MOCK_WISHLIST } from '@/lib/mockData';
-import { Trip, VisitedPlace, WishlistItem } from '@/types';
+import { Trip, VisitedPlace, WishlistItem, TimelineChapter } from '@/types';
 import { Map3DView } from '@/components/Map/Map3DView';
-import { Compass, ArrowLeft, Layers, MapPin, Heart, Sparkles, Share2 } from 'lucide-react';
-
+import { Compass, ArrowLeft, Sparkles, Plus } from 'lucide-react';
 import { MobileNavigation } from '@/components/MobileNavigation';
+import {
+  getStoredTrips,
+  getStoredVisitedPlaces,
+  getStoredWishlist,
+  getStoredChapters,
+  saveStoredWishlist,
+} from '@/lib/storage';
 
 export default function Map3DPage() {
-  const [activeTrip] = useState<Trip>(MOCK_TRIPS[0]);
-  const [visitedPlaces] = useState<VisitedPlace[]>(MOCK_VISITED_PLACES['trip_tokyo_2025'] || []);
-  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>(MOCK_WISHLIST);
-  const [chapters] = useState(MOCK_CHAPTERS['trip_tokyo_2025'] || []);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
+  const [visitedPlaces, setVisitedPlaces] = useState<VisitedPlace[]>([]);
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
+  const [chapters, setChapters] = useState<TimelineChapter[]>([]);
 
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
+  // Load user data on mount
+  useEffect(() => {
+    const loadedTrips = getStoredTrips();
+    const loadedVisitedMap = getStoredVisitedPlaces();
+    const loadedWishlist = getStoredWishlist();
+    const loadedChaptersMap = getStoredChapters();
+
+    setTrips(loadedTrips);
+    setWishlistItems(loadedWishlist);
+
+    if (loadedTrips.length > 0) {
+      const firstTrip = loadedTrips[0];
+      setActiveTrip(firstTrip);
+      setVisitedPlaces(loadedVisitedMap[firstTrip.id] || []);
+      setChapters(loadedChaptersMap[firstTrip.id] || []);
+    } else {
+      // Flatten all visited places across trips if no active trip selected
+      const allVisited = Object.values(loadedVisitedMap).flat();
+      setVisitedPlaces(allVisited);
+      const allChapters = Object.values(loadedChaptersMap).flat();
+      setChapters(allChapters);
+    }
+  }, []);
+
   const handleConvertToVisited = (item: WishlistItem) => {
-    setWishlistItems((prev) => prev.filter((w) => w.id !== item.id));
+    const updatedWishlist = wishlistItems.filter((w) => w.id !== item.id);
+    setWishlistItems(updatedWishlist);
+    saveStoredWishlist(updatedWishlist);
   };
 
   return (
@@ -42,16 +74,28 @@ export default function Map3DPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="hidden md:inline-block text-xs text-[#FAF3E7] font-medium">
-            ✈️ {activeTrip.title}
-          </span>
-          <Link
-            href={`/reel/${activeTrip.slug}`}
-            className="flex items-center gap-1.5 rounded-lg bg-[#ff947a] px-3 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#f08368] transition shadow"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Launch AI Story Reel
-          </Link>
+          {activeTrip ? (
+            <>
+              <span className="hidden md:inline-block text-xs text-[#FAF3E7] font-medium">
+                ✈️ {activeTrip.title}
+              </span>
+              <Link
+                href={`/reel/${activeTrip.slug}`}
+                className="flex items-center gap-1.5 rounded-lg bg-[#ff947a] px-3 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#f08368] transition shadow"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Launch AI Story Reel
+              </Link>
+            </>
+          ) : (
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 rounded-lg bg-[#ff947a] px-3 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#f08368] transition shadow"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Dining Spot
+            </Link>
+          )}
         </div>
       </header>
 

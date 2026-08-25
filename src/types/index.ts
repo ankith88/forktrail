@@ -21,6 +21,8 @@ export interface Trip {
   summary: string;
   visibility: 'public' | 'private';
   createdAt: string;
+  categoryType?: 'trip' | 'hometown_log' | 'standalone_story';
+  isHometown?: boolean;
 }
 
 export interface TimelineChapter {
@@ -49,6 +51,7 @@ export interface VisitedPlace {
   priceLevel?: number; // 1-4
   category: string;
   recommendedDish?: string;
+  isHometown?: boolean;
 }
 
 export interface WishlistItem {

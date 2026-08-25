@@ -70,8 +70,11 @@ export function MapView({
     if (visitedPlaces.length > 0) {
       return { lat: visitedPlaces[0].lat, lng: visitedPlaces[0].lng };
     }
-    return { lat: 35.6875, lng: 139.6972 }; // Default Tokyo
-  }, [visitedPlaces]);
+    if (wishlistItems.length > 0) {
+      return { lat: wishlistItems[0].lat, lng: wishlistItems[0].lng };
+    }
+    return { lat: 20.0, lng: 0.0 };
+  }, [visitedPlaces, wishlistItems]);
 
   // Polyline routes connecting places chronologically per day
   const polylineRoutes = useMemo(() => {
@@ -257,7 +260,7 @@ export function MapView({
           <div className="z-10 mt-12 flex items-center justify-between bg-[#FFFFFF] border border-[#025259]/15 p-3 rounded-xl shadow-sm">
             <div className="flex items-center gap-2 text-xs text-[#025259] font-semibold">
               <Compass className="w-4 h-4 text-[#ff947a] animate-spin-slow" />
-              <span>Interactive Map Dashboard (Demo Mode)</span>
+              <span>Interactive Map Dashboard</span>
             </div>
             <div className="text-[11px] text-[#025259] font-mono bg-[#E3A857]/20 px-2.5 py-1 rounded-md border border-[#E3A857]/40 font-bold">
               {filteredVisitedPlaces.length} Visited • {wishlistItems.length} Wishlist
@@ -266,6 +269,18 @@ export function MapView({
 
           {/* Interactive Map Canvas Grid */}
           <div className="relative flex-1 my-4 rounded-xl bg-[#FAF3E7] border border-[#025259]/10 p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 overflow-y-auto">
+            
+            {filteredVisitedPlaces.length === 0 && wishlistItems.length === 0 && (
+              <div className="col-span-full flex flex-col items-center justify-center py-16 px-4 text-center space-y-3 my-auto">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ff947a]/20 text-[#ff947a]">
+                  <MapPin className="h-6 w-6" />
+                </div>
+                <h3 className="font-serif font-bold text-lg text-[#025259]">No Places Logged Yet</h3>
+                <p className="text-xs text-stone-600 max-w-sm">
+                  Log a visit or add wishlist spots to display your culinary pins on the map!
+                </p>
+              </div>
+            )}
             
             {/* Visited Place Cards */}
             {filteredVisitedPlaces.map((place) => (

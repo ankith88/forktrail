@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { VisitedPlace, TimelineChapter } from '@/types';
-import { X, MapPin, Star, Utensils, Tag } from 'lucide-react';
+import { getLocalDateString } from '@/lib/utils';
+import { X, MapPin, Star, Utensils, Tag, Calendar, Navigation, Loader2 } from 'lucide-react';
 
 interface AddVisitModalProps {
   isOpen: boolean;
@@ -30,6 +31,43 @@ export function AddVisitModal({
   const [chapterId, setChapterId] = useState(defaultChapterId || chapters[0]?.id || '');
   const [photoUrl, setPhotoUrl] = useState('');
 
+  // Date Visited - Defaults to current local date of user location
+  const [visitDate, setVisitDate] = useState(() => getLocalDateString());
+
+  // User Geolocation capture
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<string>('Location not detected');
+
+  const handleDetectLocation = () => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setLocationStatus('Geolocation is not supported by your browser');
+      return;
+    }
+    setIsLocating(true);
+    setLocationStatus('Acquiring location...');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLat(pos.coords.latitude);
+        setLng(pos.coords.longitude);
+        setIsLocating(false);
+        setLocationStatus(`Captured: ${pos.coords.latitude.toFixed(4)}°, ${pos.coords.longitude.toFixed(4)}°`);
+      },
+      (err) => {
+        setIsLocating(false);
+        setLocationStatus(`Error: ${err.message || 'Permission denied'}`);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  useEffect(() => {
+    if (isOpen && lat === null) {
+      handleDetectLocation();
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -41,19 +79,26 @@ export function AddVisitModal({
       .map(t => t.trim())
       .filter(Boolean);
 
+    // Build ISO timestamp from user selected date
+    const selectedDateObj = new Date(visitDate + 'T' + new Date().toTimeString().split(' ')[0]);
+    const visitTimeIso = isNaN(selectedDateObj.getTime())
+      ? new Date().toISOString()
+      : selectedDateObj.toISOString();
+
     onSaveVisit({
-      chapterId: chapterId || chapters[0]?.id,
+      chapterId: chapterId || (chapters.length > 0 ? chapters[0].id : 'chap_hometown'),
       name,
-      address: address || 'Tokyo, Japan',
+      address: address || 'Local Dining Spot',
       category,
       rating,
       priceLevel,
       recommendedDish,
       tastingNotes,
-      dishTags: dishTags.length ? dishTags : ['Culinary Spot'],
-      visitTime: new Date().toISOString(),
-      lat: 35.6875 + (Math.random() - 0.5) * 0.05,
-      lng: 139.6972 + (Math.random() - 0.5) * 0.05,
+      dishTags: dishTags.length ? dishTags : ['Local Eats'],
+      visitTime: visitTimeIso,
+      lat: lat !== null ? lat : 37.7749 + (Math.random() - 0.5) * 0.05,
+      lng: lng !== null ? lng : -122.4194 + (Math.random() - 0.5) * 0.05,
+      isHometown: chapters.length === 0 || chapters[0]?.id?.includes('hometown'),
       photoUrls: photoUrl
         ? [photoUrl]
         : ['https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80'],
@@ -61,6 +106,7 @@ export function AddVisitModal({
 
     onClose();
   };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
@@ -80,22 +126,70 @@ export function AddVisitModal({
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           
-          {/* Chapter Selector */}
-          <div>
-            <label htmlFor="modal-chapter-select" className="block text-[#025259] font-bold mb-1">Timeline Day / Chapter</label>
-            <select
-              id="modal-chapter-select"
-              value={chapterId}
-              onChange={(e) => setChapterId(e.target.value)}
-              className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] font-medium"
-            >
-              {chapters.map((c) => (
-                <option key={c.id} value={c.id}>
-                  Day {c.dayNumber}: {c.title}
-                </option>
-              ))}
-            </select>
+          {/* Chapter Selector & Date Visited */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="modal-chapter-select" className="block text-[#025259] font-bold mb-1">Timeline Day / Chapter</label>
+              <select
+                id="modal-chapter-select"
+                value={chapterId}
+                onChange={(e) => setChapterId(e.target.value)}
+                className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] font-medium"
+              >
+                {chapters.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    Day {c.dayNumber}: {c.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="modal-visit-date" className="block text-[#025259] font-bold mb-1 flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5 text-[#ff947a]" /> Date Visited
+              </label>
+              <input
+                id="modal-visit-date"
+                type="date"
+                required
+                value={visitDate}
+                onChange={(e) => setVisitDate(e.target.value)}
+                className="w-full rounded-xl border border-[#025259]/20 bg-[#FDF8F0] p-2.5 text-[#025259] font-medium focus:border-[#ff947a] focus:outline-none"
+              />
+            </div>
           </div>
+
+          {/* User Geolocation Card */}
+          <div className="rounded-xl border border-[#025259]/15 bg-[#FDF8F0] p-3 text-xs flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#025259]/10 text-[#025259]">
+                <Navigation className="h-4 w-4 text-[#ff947a]" />
+              </div>
+              <div className="truncate">
+                <span className="block font-bold text-[#025259]">Captured Geolocation</span>
+                <span className="block text-[11px] text-stone-600 truncate">{locationStatus}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleDetectLocation}
+              disabled={isLocating}
+              className="shrink-0 flex items-center gap-1 rounded-lg border border-[#025259]/20 bg-[#FFFFFF] px-2.5 py-1.5 font-bold text-[#025259] hover:bg-[#ff947a] transition text-[11px] disabled:opacity-50"
+            >
+              {isLocating ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin text-[#ff947a]" />
+                  Locating...
+                </>
+              ) : (
+                <>
+                  <MapPin className="h-3 w-3 text-[#ff947a]" />
+                  Detect Location
+                </>
+              )}
+            </button>
+          </div>
+
 
           {/* Venue Name & Address */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

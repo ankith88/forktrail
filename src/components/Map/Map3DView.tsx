@@ -74,13 +74,16 @@ export function Map3DView({
     return wishlistItems;
   }, [wishlistItems, activeFilter]);
 
-  // Center map on first place or Tokyo center
+  // Center map on first place or global neutral center
   const center = useMemo(() => {
     if (visitedPlaces.length > 0) {
       return { lat: visitedPlaces[0].lat, lng: visitedPlaces[0].lng };
     }
-    return { lat: 35.6875, lng: 139.6972 };
-  }, [visitedPlaces]);
+    if (wishlistItems.length > 0) {
+      return { lat: wishlistItems[0].lat, lng: wishlistItems[0].lng };
+    }
+    return { lat: 20.0, lng: 0.0 };
+  }, [visitedPlaces, wishlistItems]);
 
   // Auto rotation 3D effect
   useEffect(() => {
@@ -355,6 +358,18 @@ export function Map3DView({
 
           {/* Interactive 3D Perspective Card Nodes */}
           <div className="relative flex-1 my-4 rounded-2xl bg-[#FAF3E7] border border-[#025259]/10 p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 overflow-y-auto transform-gpu transition-all">
+            
+            {displayVisited.length === 0 && displayWishlist.length === 0 && (
+              <div className="col-span-full flex flex-col items-center justify-center py-16 px-4 text-center space-y-3 my-auto">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ff947a]/20 text-[#ff947a]">
+                  <MapPin className="h-6 w-6" />
+                </div>
+                <h3 className="font-serif font-bold text-lg text-[#025259]">No Places Logged Yet</h3>
+                <p className="text-xs text-stone-600 max-w-sm">
+                  Your 3D map is clean! Start a new food trip or log a dining visit on your dashboard to see your 3D pins come to life.
+                </p>
+              </div>
+            )}
             
             {displayVisited.map((place) => (
               <div

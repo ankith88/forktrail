@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Compass, MapPin, Heart, Sparkles, BookOpen, Layers, Plus, User, LogOut, LogIn } from 'lucide-react';
 import { Trip } from '@/types';
 import { User as FirebaseUser } from 'firebase/auth';
@@ -42,15 +43,22 @@ export function Navbar({
         {/* Brand Logo */}
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ff947a] text-[#025259] shadow-md transition-transform group-hover:scale-105">
-              <Compass className="h-6 w-6 stroke-[2.5]" />
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-[#FAF3E7] p-1 shadow-md transition-transform group-hover:scale-105">
+              <Image
+                src="/logo-mark.png"
+                alt="ForkTrail Mark"
+                width={36}
+                height={36}
+                className="h-full w-full object-contain"
+                priority
+              />
             </div>
             <div>
-              <span className="font-serif text-xl font-bold tracking-tight text-white">
+              <span className="font-serif text-xl font-bold tracking-tight text-white block leading-tight">
                 Fork<span className="text-[#ff947a]">Trail</span>
               </span>
               <span className="block text-[10px] uppercase tracking-widest text-[#E3A857] font-sans font-semibold">
-                Culinary Travel Diary
+                Your Culinary Journey
               </span>
             </div>
           </Link>
