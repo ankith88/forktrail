@@ -65,6 +65,7 @@ export default function DashboardPage() {
 
   // Modals & Drawers state
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
+  const [isSideDrawerOpen, setIsSideDrawerOpen] = useState(false);
   const [isPhotoUploaderOpen, setIsPhotoUploaderOpen] = useState(false);
   const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
   const [isCreateTripModalOpen, setIsCreateTripModalOpen] = useState(false);
@@ -575,7 +576,7 @@ export default function DashboardPage() {
         activeTrip={activeTrip}
         onSelectTrip={handleSelectTrip}
         onOpenCreateTrip={handleStartTripClick}
-        onOpenWishlist={() => setIsWishlistOpen(false || true)}
+        onOpenWishlist={() => setIsWishlistOpen(true)}
         onOpenPhotoUploader={handleImportPhotosClick}
         onOpenMenuScanner={() => setIsMenuScannerOpen(true)}
         onOpenItineraryPlanner={() => setIsItineraryPlannerOpen(true)}
@@ -584,6 +585,8 @@ export default function DashboardPage() {
         onSignOut={() => logoutUser()}
         visitedCount={activeVisitedPlaces.length}
         wishlistCount={wishlistItems.length}
+        isDrawerOpen={isSideDrawerOpen}
+        onToggleDrawer={(open) => setIsSideDrawerOpen(open !== undefined ? open : !isSideDrawerOpen)}
       />
 
       {/* Main Content Dashboard */}
@@ -936,6 +939,10 @@ export default function DashboardPage() {
         onOpenPhotoUploader={handleImportPhotosClick}
         onOpenWishlist={() => setIsWishlistOpen(true)}
         wishlistCount={wishlistItems.length}
+        onOpenSideDrawer={() => setIsSideDrawerOpen(true)}
+        onOpenMenuScanner={() => setIsMenuScannerOpen(true)}
+        onOpenItineraryPlanner={() => setIsItineraryPlannerOpen(true)}
+        onOpenAddVisit={() => setIsAddVisitModalOpen(true)}
       />
     </div>
   );

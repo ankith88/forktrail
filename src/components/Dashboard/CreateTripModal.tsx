@@ -73,7 +73,7 @@ export function CreateTripModal({ isOpen, onClose, onCreateTrip, userId }: Creat
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto font-sans">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto font-sans">
       <div className="relative w-full max-w-lg rounded-3xl border border-[#025259]/20 bg-[#FFFFFF] p-6 shadow-2xl space-y-5 text-[#025259]">
         
         {/* Header */}

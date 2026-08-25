@@ -80,7 +80,7 @@ export function PhotoUploader({ isOpen, onClose, onImportChapters, userId }: Pho
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="relative w-full max-w-4xl rounded-2xl border border-[#025259]/20 bg-[#FFFFFF] p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
         
         {/* Header */}

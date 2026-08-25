@@ -68,28 +68,63 @@ Return ONLY a JSON object:
     if (googleMapsKey && googleMapsKey !== 'your_google_maps_api_key') {
       try {
         const searchKeyword = `${dishAttributes.dishType} near ${userLat},${userLng}`;
-        const googlePlacesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
-          searchKeyword
-        )}&key=${googleMapsKey}`;
+        
+        // 2a. Try Places API (New)
+        const newRes = await fetch('https://places.googleapis.com/v1/places:searchText', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': googleMapsKey,
+            'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.primaryTypeDisplayName,places.types,places.userRatingCount,places.photos',
+          },
+          body: JSON.stringify({ textQuery: searchKeyword }),
+        });
 
-        const res = await fetch(googlePlacesUrl);
-        const data = await res.json();
+        if (newRes.ok) {
+          const data = await newRes.json();
+          if (Array.isArray(data.places) && data.places.length > 0) {
+            nearbyMatches = data.places.slice(0, 6).map((p: any, index: number) => ({
+              placeId: p.id,
+              name: p.displayName?.text || 'Local Spot',
+              address: p.formattedAddress || '',
+              rating: p.rating || 4.7,
+              userRatingsTotal: p.userRatingCount || 240,
+              lat: p.location?.latitude || userLat + (index + 1) * 0.003,
+              lng: p.location?.longitude || userLng + (index + 1) * 0.003,
+              distanceKm: Number((0.5 + index * 0.4).toFixed(1)),
+              matchingSpecialty: `${dishAttributes.dishType} (${p.primaryTypeDisplayName?.text || p.types?.[0] || 'Signature Dish'})`,
+              photoUrl: p.photos?.[0]?.name
+                ? `https://places.googleapis.com/v1/${p.photos[0].name}/media?maxHeightPx=400&maxWidthPx=400&key=${googleMapsKey}`
+                : 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=400&q=80',
+            }));
+          }
+        }
 
-        if (data.status === 'OK' && data.results) {
-          nearbyMatches = data.results.slice(0, 6).map((p: any, index: number) => ({
-            placeId: p.place_id,
-            name: p.name,
-            address: p.formatted_address,
-            rating: p.rating || 4.7,
-            userRatingsTotal: p.user_ratings_total || 240,
-            lat: p.geometry?.location?.lat || userLat + (index + 1) * 0.003,
-            lng: p.geometry?.location?.lng || userLng + (index + 1) * 0.003,
-            distanceKm: Number((0.5 + index * 0.4).toFixed(1)),
-            matchingSpecialty: `${dishAttributes.dishType} (${p.types?.[0] || 'Signature Dish'})`,
-            photoUrl: p.photos?.[0]?.photo_reference
-              ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${p.photos[0].photo_reference}&key=${googleMapsKey}`
-              : 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=400&q=80',
-          }));
+        // 2b. Fallback to Legacy Google Places API
+        if (!nearbyMatches.length) {
+          const googlePlacesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
+            searchKeyword
+          )}&key=${googleMapsKey}`;
+
+          const res = await fetch(googlePlacesUrl);
+          const data = await res.json();
+
+          if (data.status === 'OK' && data.results) {
+            nearbyMatches = data.results.slice(0, 6).map((p: any, index: number) => ({
+              placeId: p.place_id,
+              name: p.name,
+              address: p.formatted_address,
+              rating: p.rating || 4.7,
+              userRatingsTotal: p.user_ratings_total || 240,
+              lat: p.geometry?.location?.lat || userLat + (index + 1) * 0.003,
+              lng: p.geometry?.location?.lng || userLng + (index + 1) * 0.003,
+              distanceKm: Number((0.5 + index * 0.4).toFixed(1)),
+              matchingSpecialty: `${dishAttributes.dishType} (${p.types?.[0] || 'Signature Dish'})`,
+              photoUrl: p.photos?.[0]?.photo_reference
+                ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${p.photos[0].photo_reference}&key=${googleMapsKey}`
+                : 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=400&q=80',
+            }));
+          }
         }
       } catch (placesErr) {
         console.warn('Google Places API visual search query failed:', placesErr);
