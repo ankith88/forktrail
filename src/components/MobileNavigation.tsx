@@ -95,16 +95,17 @@ export function MobileNavigation({
             <span>Wishlist</span>
           </button>
 
-          {/* Menu Drawer Toggle Tab */}
+          {/* AI Menu Decoder Tab (Replaces redundant Menu icon) */}
           <button
             type="button"
             onClick={() => {
-              if (onOpenSideDrawer) onOpenSideDrawer();
+              if (onOpenMenuScanner) onOpenMenuScanner();
             }}
             className="flex flex-col items-center gap-1 text-[11px] font-medium text-stone-300 hover:text-white transition-colors"
+            title="Scan & Decode Restaurant Menu"
           >
-            <Menu className="h-5 w-5 stroke-2" />
-            <span>Menu</span>
+            <Camera className="h-5 w-5 stroke-2 text-[#ff947a]" />
+            <span>Decoder</span>
           </button>
 
         </div>

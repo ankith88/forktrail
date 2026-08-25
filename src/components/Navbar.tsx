@@ -77,10 +77,10 @@ export function Navbar({
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-[#013b40] bg-[#025259] text-white shadow-md font-sans">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
+        <div className="relative mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
           
-          {/* Left: Drawer Toggle Button, Brand Logo & Active Log Switcher */}
-          <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
+          {/* Left: Drawer Toggle Button & Desktop Active Log Switcher */}
+          <div className="flex items-center gap-2 sm:gap-3 z-10">
             {/* Side Drawer Toggle Hamburger Button */}
             <button
               type="button"
@@ -91,31 +91,9 @@ export function Navbar({
               <Menu className="h-5 w-5 stroke-[2.5]" />
             </button>
 
-            {/* Brand Logo */}
-            <Link href="/" className="flex items-center gap-2.5 group shrink-0">
-              <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-[#FAF3E7] p-1 shadow-md transition-transform group-hover:scale-105">
-                <Image
-                  src="/logo-mark.png"
-                  alt="Palatero Logo Mark"
-                  width={36}
-                  height={36}
-                  className="h-full w-full object-contain"
-                  priority
-                />
-              </div>
-              <div className="hidden min-[380px]:block">
-                <span className="font-serif text-lg sm:text-xl font-bold tracking-tight text-white block leading-tight">
-                  Palatero
-                </span>
-                <span className="block text-[9px] sm:text-[10px] tracking-wide text-[#ff947a] font-sans font-semibold">
-                  Taste the story.
-                </span>
-              </div>
-            </Link>
-
-            {/* Active Journal Switcher Pill (Compact) */}
+            {/* Active Journal Switcher Pill (Desktop Only - Mobile selects via Side Menu) */}
             {currentUser && trips.length > 0 && activeTrip && (
-              <div className="flex items-center ml-1 sm:ml-2 border-l border-[#03717b] pl-2 max-w-[140px] min-[480px]:max-w-[200px] sm:max-w-xs">
+              <div className="hidden md:flex items-center ml-2 border-l border-[#03717b] pl-2 max-w-xs">
                 <select
                   id="header-trip-selector"
                   value={activeTrip.id}
@@ -149,6 +127,31 @@ export function Navbar({
             )}
           </div>
 
+          {/* Centered Brand Logo */}
+          <Link
+            href="/"
+            className="absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0 flex items-center gap-2.5 group shrink-0 z-10"
+          >
+            <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-[#FAF3E7] p-1 shadow-md transition-transform group-hover:scale-105">
+              <Image
+                src="/logo-mark.png"
+                alt="Palatero Logo Mark"
+                width={36}
+                height={36}
+                className="h-full w-full object-contain"
+                priority
+              />
+            </div>
+            <div className="hidden md:block">
+              <span className="font-serif text-lg sm:text-xl font-bold tracking-tight text-white block leading-tight">
+                Palatero
+              </span>
+              <span className="block text-[9px] sm:text-[10px] tracking-wide text-[#ff947a] font-sans font-semibold">
+                Taste the story.
+              </span>
+            </div>
+          </Link>
+
           {/* Right Action Controls */}
           {!currentUser ? (
             <div className="flex items-center gap-2 shrink-0">
@@ -163,11 +166,11 @@ export function Navbar({
             </div>
           ) : (
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              {/* Wishlist Drawer Button */}
+              {/* Wishlist Drawer Button (Desktop Only) */}
               <button
                 type="button"
                 onClick={onOpenWishlist}
-                className="relative flex items-center gap-1.5 rounded-xl border border-[#03717b] bg-[#013b40] px-2.5 sm:px-3 py-1.5 text-xs font-medium text-white hover:bg-[#03717b] transition shadow-sm"
+                className="hidden md:flex items-center gap-1.5 rounded-xl border border-[#03717b] bg-[#013b40] px-2.5 sm:px-3 py-1.5 text-xs font-medium text-white hover:bg-[#03717b] transition shadow-sm"
                 title="View Wishlist Bookmarks"
               >
                 <Heart className="h-4 w-4 text-[#ff947a] fill-[#ff947a]/20" />

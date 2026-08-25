@@ -6,7 +6,7 @@ import { PhotoEXIFData, AIProcessedPhotoGroup } from '@/types';
 import { UploadCloud, Sparkles, X, MapPin, Calendar, Check, Loader2, Image as ImageIcon, Tag, ArrowLeft, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-import { uploadImageToStorage } from '@/lib/firebase/storageUpload';
+import { uploadImageToStorage, uploadImagesInParallel } from '@/lib/firebase/storageUpload';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
 interface PhotoUploaderProps {
@@ -59,22 +59,26 @@ export function PhotoUploader({ isOpen, onClose, onImportChapters, userId }: Pho
     setFileList(selectedFiles);
     setIsProcessingEXIF(true);
 
-    const parsedResults: PhotoEXIFData[] = [];
-    for (const file of selectedFiles) {
-      const data = await parsePhotoEXIF(file);
-      if (userId) {
-        try {
-          const storageUrl = await uploadImageToStorage(file, userId, 'exif_photos');
-          data.previewUrl = storageUrl;
-        } catch (err) {
-          console.warn('Could not upload EXIF photo to Firebase Storage:', err);
-        }
-      }
-      parsedResults.push(data);
-    }
-
+    // 1. Instant parallel EXIF extraction with local Blob preview URLs
+    const parsedResults = await Promise.all(selectedFiles.map((file) => parsePhotoEXIF(file)));
     setExifDataList(parsedResults);
     setIsProcessingEXIF(false);
+
+    // 2. Non-blocking parallel background upload of compressed WebP images
+    if (userId) {
+      uploadImagesInParallel(selectedFiles, userId, 'exif_photos', 3)
+        .then((urls) => {
+          setExifDataList((prev) =>
+            prev.map((item, idx) => ({
+              ...item,
+              previewUrl: urls[idx] || item.previewUrl,
+            }))
+          );
+        })
+        .catch((err) => {
+          console.warn('Background EXIF photo upload failed:', err);
+        });
+    }
   };
 
   const handleRunAIPipeline = async () => {

@@ -26,7 +26,7 @@ import {
 import { VoiceNoteRecorder } from '@/components/ai/VoiceNoteRecorder';
 import { VoiceNoteAnalysis } from '@/types';
 import { GoogleRestaurantDropdown, GooglePlaceResult } from './GoogleRestaurantDropdown';
-import { uploadImageToStorage } from '@/lib/firebase/storageUpload';
+import { uploadImageToStorage, uploadImagesInParallel } from '@/lib/firebase/storageUpload';
 
 interface AddVisitModalProps {
   isOpen: boolean;
@@ -256,11 +256,8 @@ export function AddVisitModal({
 
     setIsUploadingPhoto(true);
     try {
-      const newItems: { url: string; dishName: string }[] = [];
-      for (const file of files) {
-        const url = await uploadImageToStorage(file, userId, 'visit_photos');
-        if (url) newItems.push({ url, dishName: '' });
-      }
+      const urls = await uploadImagesInParallel(files, userId, 'visit_photos', 3);
+      const newItems = urls.filter(Boolean).map((url) => ({ url, dishName: '' }));
       setPhotos((prev) => [...prev, ...newItems]);
     } catch (err: any) {
       console.error('Error uploading photos:', err);
