@@ -1,26 +1,58 @@
 @import "tailwindcss";
 
+@theme {
+  --color-salmon: #ff947a;
+  --color-salmon-hover: #f08368;
+  --color-pine: #025259;
+  --color-pine-dark: #013b40;
+  --color-pine-light: #03717b;
+  --color-cream: #FDF8F0;
+  --color-cream-card: #FAF3E7;
+  --color-gold: #E3A857;
+  --color-card: #FFFFFF;
+
+  --font-serif: Playfair Display, Georgia, Cambria, serif;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #FDF8F0;
+  --foreground: #025259;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Custom Scrollbars in Pine & Salmon */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FDF8F0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #025259;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ff947a;
+}
+
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spinSlow 12s linear infinite;
 }
