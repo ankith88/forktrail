@@ -7,6 +7,8 @@ import { Trip, VisitedPlace, WishlistItem } from '@/types';
 import { Map3DView } from '@/components/Map/Map3DView';
 import { Compass, ArrowLeft, Layers, MapPin, Heart, Sparkles, Share2 } from 'lucide-react';
 
+import { MobileNavigation } from '@/components/MobileNavigation';
+
 export default function Map3DPage() {
   const [activeTrip] = useState<Trip>(MOCK_TRIPS[0]);
   const [visitedPlaces] = useState<VisitedPlace[]>(MOCK_VISITED_PLACES['trip_tokyo_2025'] || []);
@@ -20,7 +22,7 @@ export default function Map3DPage() {
   };
 
   return (
-    <div className="h-screen w-screen bg-[#FDF8F0] text-[#025259] flex flex-col font-sans overflow-hidden">
+    <div className="h-screen w-screen bg-[#FDF8F0] text-[#025259] flex flex-col font-sans overflow-hidden pb-14 md:pb-0">
       
       {/* Top Floating Map Header */}
       <header className="sticky top-0 z-40 w-full border-b border-[#013b40] bg-[#025259] text-white px-4 sm:px-6 py-3 shadow-md flex items-center justify-between">
@@ -65,6 +67,7 @@ export default function Map3DPage() {
         />
       </div>
 
+      <MobileNavigation wishlistCount={wishlistItems.length} />
     </div>
   );
 }

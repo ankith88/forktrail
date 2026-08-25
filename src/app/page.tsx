@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trip, TimelineChapter, VisitedPlace, WishlistItem, AIProcessedPhotoGroup, ReelData } from '@/types';
 import { Navbar } from '@/components/Navbar';
+import { MobileNavigation } from '@/components/MobileNavigation';
 import { MapView } from '@/components/Dashboard/MapView';
 import { TimelineView } from '@/components/Dashboard/TimelineView';
 import { PhotoUploader } from '@/components/Dashboard/PhotoUploader';
@@ -609,6 +610,11 @@ export default function DashboardPage() {
         </div>
       </footer>
 
+      <MobileNavigation
+        onOpenPhotoUploader={handleImportPhotosClick}
+        onOpenWishlist={() => setIsWishlistOpen(true)}
+        wishlistCount={wishlistItems.length}
+      />
     </div>
   );
 }
