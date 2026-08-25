@@ -5,14 +5,12 @@ import { SocialCaptions } from '@/types';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const {
-      venueName = 'Artisanal Dining Spot',
-      category = 'Culinary Gem',
-      rating = 5,
-      tastingNotes = 'Exceptional depth of flavor, perfect seasoning balance, and vibrant atmosphere.',
-      recommendedDish = 'Signature House Specialty',
-      city = 'Tokyo',
-    } = body;
+    const venueName = body.venueName || body.placeName || 'Artisanal Dining Spot';
+    const category = body.category || 'Culinary Gem';
+    const rating = body.rating || 5;
+    const tastingNotes = body.tastingNotes || body.reviewNotes || 'Exceptional depth of flavor, perfect seasoning balance, and vibrant atmosphere.';
+    const recommendedDish = body.recommendedDish || (Array.isArray(body.dishTags) && body.dishTags.length > 0 ? body.dishTags.join(', ') : (typeof body.dishTags === 'string' ? body.dishTags : 'Signature House Specialty'));
+    const city = body.city || body.destinationCity || 'Tokyo';
 
     const apiKey = process.env.GEMINI_API_KEY;
 

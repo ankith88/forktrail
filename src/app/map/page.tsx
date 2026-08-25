@@ -4,56 +4,101 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Trip, VisitedPlace, WishlistItem, TimelineChapter } from '@/types';
 import { Map3DView } from '@/components/Map/Map3DView';
-import { Compass, ArrowLeft, Sparkles, Plus } from 'lucide-react';
+import { Compass, ArrowLeft, Sparkles, Plus, MapPin } from 'lucide-react';
 import { MobileNavigation } from '@/components/MobileNavigation';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { subscribeToAuthChanges } from '@/lib/firebase/auth';
+import { fetchUserDataFromFirestore, deleteWishlistItemFromFirestore } from '@/lib/firebase/firestoreData';
+import { User as FirebaseUser } from 'firebase/auth';
 import {
   getStoredTrips,
+  saveStoredTrips,
   getStoredVisitedPlaces,
+  saveStoredVisitedPlaces,
   getStoredWishlist,
-  getStoredChapters,
   saveStoredWishlist,
+  getStoredChapters,
+  saveStoredChapters,
 } from '@/lib/storage';
 
 export default function Map3DPage() {
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
-  const [visitedPlaces, setVisitedPlaces] = useState<VisitedPlace[]>([]);
+
+  const [visitedPlacesMap, setVisitedPlacesMap] = useState<Record<string, VisitedPlace[]>>({});
+  const [chaptersMap, setChaptersMap] = useState<Record<string, TimelineChapter[]>>({});
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
-  const [chapters, setChapters] = useState<TimelineChapter[]>([]);
 
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
-  // Load user data on mount
+  // Subscribe to auth & fetch data from local storage and Firestore
   useEffect(() => {
-    const loadedTrips = getStoredTrips();
-    const loadedVisitedMap = getStoredVisitedPlaces();
-    const loadedWishlist = getStoredWishlist();
-    const loadedChaptersMap = getStoredChapters();
+    let isMounted = true;
 
-    setTrips(loadedTrips);
-    setWishlistItems(loadedWishlist);
+    const unsubscribe = subscribeToAuthChanges(async (user) => {
+      setCurrentUser(user);
 
-    if (loadedTrips.length > 0) {
-      const firstTrip = loadedTrips[0];
-      setActiveTrip(firstTrip);
-      setVisitedPlaces(loadedVisitedMap[firstTrip.id] || []);
-      setChapters(loadedChaptersMap[firstTrip.id] || []);
-    } else {
-      // Flatten all visited places across trips if no active trip selected
-      const allVisited = Object.values(loadedVisitedMap).flat();
-      setVisitedPlaces(allVisited);
-      const allChapters = Object.values(loadedChaptersMap).flat();
-      setChapters(allChapters);
-    }
-    setIsLoading(false);
+      const userId = user?.uid || null;
+
+      // 1. Load from local storage immediately for fast render
+      const localTrips = getStoredTrips(userId);
+      const localVisited = getStoredVisitedPlaces(userId);
+      const localWishlist = getStoredWishlist(userId);
+      const localChapters = getStoredChapters(userId);
+
+      if (isMounted) {
+        setTrips(localTrips);
+        setVisitedPlacesMap(localVisited);
+        setWishlistItems(localWishlist);
+        setChaptersMap(localChapters);
+        setIsLoading(false);
+      }
+
+      // 2. Fetch fresh cloud data if user is logged in
+      if (userId) {
+        const cloudData = await fetchUserDataFromFirestore(userId);
+        if (isMounted) {
+          if (cloudData.trips.length > 0) {
+            setTrips(cloudData.trips);
+            saveStoredTrips(cloudData.trips, userId);
+          }
+          setVisitedPlacesMap(cloudData.visitedPlacesMap);
+          saveStoredVisitedPlaces(cloudData.visitedPlacesMap, userId);
+
+          setWishlistItems(cloudData.wishlistItems);
+          saveStoredWishlist(cloudData.wishlistItems, userId);
+
+          setChaptersMap(cloudData.chaptersMap);
+          saveStoredChapters(cloudData.chaptersMap, userId);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
+
+  // Compute active visited places and active chapters based on selected trip
+  const activeVisitedPlaces = activeTrip
+    ? visitedPlacesMap[activeTrip.id] || []
+    : Object.values(visitedPlacesMap).flat();
+
+  const activeChapters = activeTrip
+    ? chaptersMap[activeTrip.id] || []
+    : Object.values(chaptersMap).flat();
 
   const handleConvertToVisited = (item: WishlistItem) => {
     const updatedWishlist = wishlistItems.filter((w) => w.id !== item.id);
     setWishlistItems(updatedWishlist);
-    saveStoredWishlist(updatedWishlist);
+    saveStoredWishlist(updatedWishlist, currentUser?.uid);
+
+    if (currentUser?.uid) {
+      deleteWishlistItemFromFirestore(item.id);
+    }
   };
 
   if (isLoading) {
@@ -67,11 +112,13 @@ export default function Map3DPage() {
     );
   }
 
+  const allVisitedCount = Object.values(visitedPlacesMap).flat().length;
+
   return (
     <div className="h-screen w-screen bg-[#FDF8F0] text-[#025259] flex flex-col font-sans overflow-hidden pb-14 md:pb-0">
       
       {/* Top Floating Map Header */}
-      <header className="sticky top-0 z-40 w-full border-b border-[#013b40] bg-[#025259] text-white px-4 sm:px-6 py-3 shadow-md flex items-center justify-between">
+      <header className="sticky top-0 z-40 w-full border-b border-[#013b40] bg-[#025259] text-white px-4 sm:px-6 py-3 shadow-md flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-1.5 text-xs font-semibold text-[#FAF3E7] hover:text-[#ff947a] transition">
             <ArrowLeft className="h-4 w-4" /> Back to Dashboard
@@ -87,20 +134,42 @@ export default function Map3DPage() {
           </div>
         </div>
 
+        {/* Trip Selection Dropdown */}
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-[#03717b] px-3 py-1.5 rounded-xl border border-white/20">
+            <MapPin className="w-3.5 h-3.5 text-[#ff947a]" />
+            <select
+              value={activeTrip?.id || 'all'}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'all') {
+                  setActiveTrip(null);
+                } else {
+                  const selected = trips.find((t) => t.id === val) || null;
+                  setActiveTrip(selected);
+                }
+              }}
+              className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
+            >
+              <option value="all" className="bg-[#025259] text-white">
+                All Trips & Hometown ({allVisitedCount} visits)
+              </option>
+              {trips.map((t) => (
+                <option key={t.id} value={t.id} className="bg-[#025259] text-white">
+                  ✈️ {t.title} ({(visitedPlacesMap[t.id] || []).length} visits)
+                </option>
+              ))}
+            </select>
+          </div>
+
           {activeTrip ? (
-            <>
-              <span className="hidden md:inline-block text-xs text-[#FAF3E7] font-medium">
-                ✈️ {activeTrip.title}
-              </span>
-              <Link
-                href={`/reel/${activeTrip.slug}`}
-                className="flex items-center gap-1.5 rounded-lg bg-[#ff947a] px-3 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#f08368] transition shadow"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Launch AI Story Reel
-              </Link>
-            </>
+            <Link
+              href={`/reel/${activeTrip.slug}`}
+              className="flex items-center gap-1.5 rounded-lg bg-[#ff947a] px-3 py-1.5 text-xs font-bold text-[#025259] hover:bg-[#f08368] transition shadow"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Launch AI Story Reel
+            </Link>
           ) : (
             <Link
               href="/"
@@ -116,9 +185,9 @@ export default function Map3DPage() {
       {/* Full-Screen 3D Map View Container */}
       <div className="flex-1 w-full h-full p-4 relative">
         <Map3DView
-          visitedPlaces={visitedPlaces}
+          visitedPlaces={activeVisitedPlaces}
           wishlistItems={wishlistItems}
-          chapters={chapters}
+          chapters={activeChapters}
           selectedPlaceId={selectedPlaceId}
           onSelectPlace={(place) => place && setSelectedPlaceId(place.id)}
           onConvertToVisited={handleConvertToVisited}
@@ -129,3 +198,4 @@ export default function Map3DPage() {
     </div>
   );
 }
+

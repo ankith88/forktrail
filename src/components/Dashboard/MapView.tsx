@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { GoogleMap, useJsApiLoader, MarkerF, PolylineF, InfoWindowF } from '@react-google-maps/api';
 import { VisitedPlace, WishlistItem, TimelineChapter } from '@/types';
-import { Star, MapPin, Heart, Utensils, Calendar, ExternalLink, CheckCircle2, ChevronRight, Compass, Navigation } from 'lucide-react';
+import { Star, MapPin, Heart, Utensils, Calendar, ExternalLink, CheckCircle2, ChevronRight, Compass, Navigation, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MapViewProps {
@@ -15,6 +15,7 @@ interface MapViewProps {
   onConvertToVisited?: (item: WishlistItem) => void;
   activeDayFilter?: number | 'all';
   onSelectDayFilter?: (day: number | 'all') => void;
+  onOpenVisitStory?: (visit: VisitedPlace) => void;
 }
 
 const defaultMapContainerStyle = {
@@ -49,6 +50,7 @@ export function MapView({
   onConvertToVisited,
   activeDayFilter = 'all',
   onSelectDayFilter,
+  onOpenVisitStory,
 }: MapViewProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
   const isGoogleMapsReady = Boolean(apiKey && apiKey !== 'your_google_maps_api_key');
@@ -412,6 +414,25 @@ export function MapView({
                       className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
+                )}
+
+                {onOpenVisitStory && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenVisitStory(place);
+                    }}
+                    className={cn(
+                      "mt-2.5 flex items-center justify-center gap-1.5 w-full rounded-lg py-1.5 text-xs font-bold transition shadow-xs",
+                      place.story
+                        ? "bg-[#025259] text-white hover:bg-[#025259]/90"
+                        : "bg-[#FDF8F0] text-[#025259] border border-[#025259]/20 hover:bg-[#ff947a]/30"
+                    )}
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-[#ff947a]" />
+                    <span>{place.story ? 'Read Visit Story' : 'Write Visit Story'}</span>
+                  </button>
                 )}
               </div>
             ))}

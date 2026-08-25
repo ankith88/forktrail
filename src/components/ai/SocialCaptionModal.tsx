@@ -39,16 +39,16 @@ export function SocialCaptionModal({
     setError(null);
 
     try {
-      const res = await fetch('/api/ai/social-captions', {
+      const res = await fetch('/api/ai/generate-captions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          placeName: place?.name || 'Local Gourmet Spot',
+          venueName: place?.name || 'Local Gourmet Spot',
           category: place?.category || 'Dining Venue',
           rating: place?.rating || 4.8,
-          dishTags: place?.dishTags || ['Chef Signature', 'Local Special'],
-          reviewNotes: place?.tastingNotes || 'Outstanding culinary experience and memorable atmosphere.',
-          destinationCity: destinationCity || 'Tokyo',
+          recommendedDish: place?.recommendedDish || (place?.dishTags && place.dishTags.length > 0 ? place.dishTags.join(', ') : 'Chef Signature'),
+          tastingNotes: place?.tastingNotes || 'Outstanding culinary experience and memorable atmosphere.',
+          city: destinationCity || 'Tokyo',
           chapterTitle: chapterTitle || 'Day 1 Exploration',
         }),
       });
@@ -139,6 +139,20 @@ export function SocialCaptionModal({
                 text="Crafting Captions with AI..."
                 subtext="Synthesizing venue metadata, tasting notes, and culinary vibes"
               />
+            </div>
+          )}
+
+          {/* Error state */}
+          {!isLoading && error && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center shadow-sm space-y-3">
+              <p className="text-xs font-bold text-red-700">{error}</p>
+              <button
+                onClick={generateCaptions}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#025259] px-4 py-2 text-xs font-bold text-white hover:bg-[#023e44] transition"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-[#ff947a]" />
+                Try Again
+              </button>
             </div>
           )}
 

@@ -377,78 +377,49 @@ export function CalendarView({
                       : 'border-[#025259]/15'
                   )}
                 >
-                  {/* Metadata Header */}
-                  <div className="flex items-center justify-between gap-2 border-b border-[#025259]/10 pb-2.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-md bg-[#025259]/10 px-2.5 py-1 text-xs font-bold text-[#025259] border border-[#025259]/20">
-                        {place.category}
-                      </span>
-
-                      {/* Meal Period Badge */}
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs border font-semibold',
-                          mealBadge.className
+                  {/* Hero Header Row: Title, Rating, Price, Milestone & Actions */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-lg font-serif font-bold text-[#025259] group-hover/card:text-[#ff947a] transition leading-snug">
+                          {place.name}
+                        </h4>
+                        {place.occasion && (
+                          <span className="px-2 py-0.5 text-[10px] font-extrabold rounded-md bg-[#ff947a]/20 border border-[#ff947a]/50 text-[#025259] uppercase tracking-wide">
+                            ✨ {place.occasion.replace('_', ' ')}
+                          </span>
                         )}
-                      >
-                        <span>{mealBadge.icon}</span>
-                        <span>{mealBadge.label}</span>
-                      </span>
-
-                      {/* Visit Date & Time Badge */}
-                      <span className="inline-flex items-center gap-1.5 rounded-md bg-[#FAF3E7] px-2 py-0.5 text-xs text-[#025259] border border-[#025259]/15 font-semibold">
-                        <CalendarIcon className="h-3 w-3 text-[#ff947a]" />
-                        <span>{formattedVisitDate}</span>
-                        {displayTimeStr && (
-                          <>
-                            <span className="text-stone-300">•</span>
-                            <Clock className="h-3 w-3 text-[#ff947a]" />
-                            <span>{displayTimeStr}</span>
-                          </>
+                        {/* Rating */}
+                        <div className="flex items-center gap-1 bg-[#E3A857]/20 px-2 py-0.5 rounded-md text-xs font-bold text-[#025259]">
+                          <Star className="h-3.5 w-3.5 fill-[#E3A857] text-[#E3A857]" />
+                          <span>{place.rating}.0</span>
+                        </div>
+                        {/* Price Level */}
+                        {place.priceLevel && (
+                          <div className="flex items-center text-xs font-bold text-[#025259] bg-[#025259]/10 px-2 py-0.5 rounded-md">
+                            {'$'.repeat(place.priceLevel)}
+                          </div>
                         )}
-                      </span>
-
-                      {/* Palate Score Badge */}
-                      <PalateScoreBadge
-                        venue={{
-                          name: place.name,
-                          category: place.category,
-                          address: place.address,
-                          notes: place.tastingNotes,
-                        }}
-                      />
-
-                      {/* Rating Stars */}
-                      <div className="flex items-center gap-1 bg-[#E3A857]/20 px-2 py-0.5 rounded-md text-xs font-bold text-[#025259]">
-                        <Star className="h-3.5 w-3.5 fill-[#E3A857] text-[#E3A857]" />
-                        <span>{place.rating}.0</span>
+                        {/* Palate Score */}
+                        <PalateScoreBadge
+                          venue={{
+                            name: place.name,
+                            category: place.category,
+                            address: place.address,
+                            notes: place.tastingNotes,
+                          }}
+                        />
                       </div>
 
-                      {/* Price Level */}
-                      {place.priceLevel && (
-                        <div className="flex items-center text-xs font-bold text-[#025259] bg-[#025259]/10 px-2 py-0.5 rounded-md">
-                          {'$'.repeat(place.priceLevel)}
-                        </div>
-                      )}
+                      {/* Address Subtitle */}
+                      <p className="text-xs text-stone-600 flex items-center gap-1.5">
+                        <MapPin className="h-3.5 w-3.5 text-[#ff947a] shrink-0" />
+                        <span>{place.address}</span>
+                      </p>
                     </div>
 
-                    {/* Card Actions */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      {onOpenSocialCaptions && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenSocialCaptions(place);
-                          }}
-                          className="flex items-center gap-1.5 rounded-lg border border-[#ff947a]/40 bg-[#ff947a]/15 px-2.5 py-1 text-xs font-bold text-[#025259] hover:bg-[#ff947a] transition shadow-sm"
-                          title="Share & Generate Captions"
-                        >
-                          <Share2 className="h-3.5 w-3.5 text-[#ff947a]" />
-                          <span className="hidden sm:inline">Share Captions</span>
-                        </button>
-                      )}
-
+                    {/* Quick Edit / Delete Controls */}
+                    <div className="flex items-center gap-1 shrink-0">
                       {onEditPlace && (
                         <button
                           type="button"
@@ -477,16 +448,35 @@ export function CalendarView({
                     </div>
                   </div>
 
-                  {/* Venue Name & Address */}
-                  <div>
-                    <h4 className="text-lg font-bold text-[#025259] group-hover/card:text-[#ff947a] transition leading-snug">
-                      {place.name}
-                    </h4>
-                    <p className="text-xs text-stone-600 flex items-center gap-1.5 mt-0.5">
-                      <MapPin className="h-3.5 w-3.5 text-[#ff947a] shrink-0" />
-                      <span>{place.address}</span>
-                    </p>
+                  {/* Streamlined Metadata Sub-Row */}
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-[#025259]/80 font-medium py-1.5 px-3 bg-[#FAF3E7]/60 rounded-xl border border-[#025259]/10">
+                    <span className="font-bold text-[#025259]">{place.category}</span>
+                    <span className="text-stone-300">•</span>
+                    <span className="inline-flex items-center gap-1 font-semibold">
+                      <span>{mealBadge.icon}</span>
+                      <span>{mealBadge.label}</span>
+                    </span>
+                    <span className="text-stone-300">•</span>
+                    <span className="inline-flex items-center gap-1 text-stone-600">
+                      <CalendarIcon className="h-3 w-3 text-[#ff947a]" />
+                      <span>{formattedVisitDate}</span>
+                      {displayTimeStr && (
+                        <>
+                          <span>at</span>
+                          <Clock className="h-3 w-3 text-[#ff947a]" />
+                          <span>{displayTimeStr}</span>
+                        </>
+                      )}
+                    </span>
                   </div>
+
+                  {/* Celebration Story Reason */}
+                  {place.celebrationReason && (
+                    <div className="rounded-xl border-l-4 border-[#ff947a] bg-[#ff947a]/10 p-3 text-xs text-[#025259]">
+                      <span className="font-bold text-[#025259]">🎉 Celebration Story: </span>
+                      <span>{place.celebrationReason}</span>
+                    </div>
+                  )}
 
                   {/* Must Order Dish */}
                   {place.recommendedDish && (
@@ -534,6 +524,24 @@ export function CalendarView({
                           )}
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Action Toolbar */}
+                  {onOpenSocialCaptions && (
+                    <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t border-[#025259]/10">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenSocialCaptions(place);
+                        }}
+                        className="flex items-center gap-1.5 rounded-lg border border-[#025259]/20 bg-[#FDF8F0] hover:bg-[#FAF3E7] px-3 py-1.5 text-xs font-bold text-[#025259] transition shadow-xs"
+                        title="Share & Generate Captions"
+                      >
+                        <Share2 className="h-3.5 w-3.5 text-[#ff947a]" />
+                        <span>Share Captions</span>
+                      </button>
                     </div>
                   )}
 

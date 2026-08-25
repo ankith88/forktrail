@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { VisitedPlace, TimelineChapter, Trip } from '@/types';
-import { getLocalDateString, getMealPeriodFromTime, MealType } from '@/lib/utils';
+import { getLocalDateString, getMealPeriodFromTime, MealType, cn } from '@/lib/utils';
 import {
   X,
   MapPin,
@@ -20,6 +20,8 @@ import {
   Plus,
   Trash2,
   Image as ImageIcon,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react';
 import { VoiceNoteRecorder } from '@/components/ai/VoiceNoteRecorder';
 import { VoiceNoteAnalysis } from '@/types';
@@ -284,6 +286,37 @@ export function AddVisitModal({
 
   const handleRemovePhoto = (index: number) => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMovePhotoLeft = (index: number) => {
+    if (index <= 0) return;
+    setPhotos((prev) => {
+      const updated = [...prev];
+      const temp = updated[index - 1];
+      updated[index - 1] = updated[index];
+      updated[index] = temp;
+      return updated;
+    });
+  };
+
+  const handleMovePhotoRight = (index: number) => {
+    setPhotos((prev) => {
+      if (index >= prev.length - 1) return prev;
+      const updated = [...prev];
+      const temp = updated[index + 1];
+      updated[index + 1] = updated[index];
+      updated[index] = temp;
+      return updated;
+    });
+  };
+
+  const handleSetCoverPhoto = (index: number) => {
+    if (index === 0) return;
+    setPhotos((prev) => {
+      const target = prev[index];
+      const rest = prev.filter((_, i) => i !== index);
+      return [target, ...rest];
+    });
   };
 
   if (!isOpen) return null;
@@ -768,33 +801,82 @@ export function AddVisitModal({
                 </div>
               </div>
 
-              {/* Labeled Photo Gallery Grid Preview */}
+              {/* Labeled Photo Gallery Grid Preview with Manual Reordering */}
               {photos.length > 0 && (
-                <div className="space-y-2 mt-2 pt-2 border-t border-[#025259]/10 max-h-48 overflow-y-auto pr-1">
-                  <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wider block">
-                    Tag dish names for AI story & video reel:
-                  </span>
+                <div className="space-y-2 mt-2 pt-2 border-t border-[#025259]/10 max-h-56 overflow-y-auto pr-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wider block">
+                      Arrange Photos & Tag Dish Names:
+                    </span>
+                    <span className="text-[10px] text-[#ff947a] font-bold">
+                      💡 Use arrows ← → to reorder photos
+                    </span>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {photos.map((item, index) => (
-                      <div key={index} className="flex items-center gap-2 p-1.5 rounded-xl border border-[#025259]/15 bg-[#FAF3E7]/50 shadow-xs">
-                        <div className="group relative h-12 w-12 rounded-lg overflow-hidden border border-[#025259]/20 shrink-0">
-                          <img src={item.url} alt={`Photo ${index + 1}`} className="h-full w-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => handleRemovePhoto(index)}
-                            className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-white opacity-80 hover:opacity-100 transition shadow-sm"
-                            title="Remove photo"
-                          >
-                            <X className="h-2.5 w-2.5" />
-                          </button>
+                      <div key={index} className={cn("flex flex-col gap-1.5 p-2 rounded-xl border shadow-xs transition", index === 0 ? "border-[#ff947a] bg-[#ff947a]/10" : "border-[#025259]/15 bg-[#FAF3E7]/50")}>
+                        <div className="flex items-center gap-2">
+                          <div className="group relative h-14 w-14 rounded-lg overflow-hidden border border-[#025259]/20 shrink-0 shadow-xs">
+                            <img src={item.url} alt={`Photo ${index + 1}`} className="h-full w-full object-cover" />
+                            {index === 0 && (
+                              <span className="absolute top-0 inset-x-0 bg-[#025259] text-[#ff947a] text-[8px] font-extrabold text-center py-0.5 uppercase tracking-tighter">
+                                Cover
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePhoto(index)}
+                              className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-white opacity-90 hover:opacity-100 transition shadow-sm z-10"
+                              title="Remove photo"
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          </div>
+
+                          <div className="flex-1 flex flex-col justify-between h-full gap-1">
+                            <input
+                              type="text"
+                              placeholder="Dish name (e.g. Wagyu A5 Nigiri)"
+                              value={item.dishName || ''}
+                              onChange={(e) => handleUpdateDishName(index, e.target.value)}
+                              className="w-full rounded-lg border border-[#025259]/20 bg-white px-2 py-1 text-[11px] text-[#025259] placeholder-stone-400 focus:border-[#ff947a] focus:outline-none"
+                            />
+                            
+                            {/* Reorder Toolbar */}
+                            <div className="flex items-center justify-between text-[10px]">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMovePhotoLeft(index)}
+                                  disabled={index === 0}
+                                  className="flex items-center justify-center h-5 w-5 rounded bg-white border border-[#025259]/20 text-[#025259] hover:bg-[#ff947a] transition disabled:opacity-30 disabled:pointer-events-none"
+                                  title="Move Left / Earlier"
+                                >
+                                  <ArrowLeft className="h-3 w-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMovePhotoRight(index)}
+                                  disabled={index === photos.length - 1}
+                                  className="flex items-center justify-center h-5 w-5 rounded bg-white border border-[#025259]/20 text-[#025259] hover:bg-[#ff947a] transition disabled:opacity-30 disabled:pointer-events-none"
+                                  title="Move Right / Later"
+                                >
+                                  <ArrowRight className="h-3 w-3" />
+                                </button>
+                              </div>
+
+                              {index !== 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetCoverPhoto(index)}
+                                  className="text-[9px] font-bold text-[#025259] hover:text-[#ff947a] underline"
+                                >
+                                  Set Cover
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <input
-                          type="text"
-                          placeholder="Dish name (e.g. Wagyu A5 Nigiri)"
-                          value={item.dishName || ''}
-                          onChange={(e) => handleUpdateDishName(index, e.target.value)}
-                          className="flex-1 rounded-lg border border-[#025259]/20 bg-white px-2 py-1 text-[11px] text-[#025259] placeholder-stone-400 focus:border-[#ff947a] focus:outline-none"
-                        />
                       </div>
                     ))}
                   </div>

@@ -64,6 +64,7 @@ export interface VisitedPlace {
   category: string;
   recommendedDish?: string;
   isHometown?: boolean;
+  story?: string;
 }
 
 export interface WishlistItem {

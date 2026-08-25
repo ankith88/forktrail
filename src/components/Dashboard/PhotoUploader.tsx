@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { parsePhotoEXIF } from '@/lib/exif';
 import { PhotoEXIFData, AIProcessedPhotoGroup } from '@/types';
-import { UploadCloud, Sparkles, X, MapPin, Calendar, Check, Loader2, Image as ImageIcon, Tag } from 'lucide-react';
+import { UploadCloud, Sparkles, X, MapPin, Calendar, Check, Loader2, Image as ImageIcon, Tag, ArrowLeft, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { uploadImageToStorage } from '@/lib/firebase/storageUpload';
@@ -26,6 +26,32 @@ export function PhotoUploader({ isOpen, onClose, onImportChapters, userId }: Pho
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
+
+  const handleMoveExifLeft = (idx: number) => {
+    if (idx <= 0) return;
+    setExifDataList((prev) => {
+      const updated = [...prev];
+      const temp = updated[idx - 1];
+      updated[idx - 1] = updated[idx];
+      updated[idx] = temp;
+      return updated;
+    });
+  };
+
+  const handleMoveExifRight = (idx: number) => {
+    setExifDataList((prev) => {
+      if (idx >= prev.length - 1) return prev;
+      const updated = [...prev];
+      const temp = updated[idx + 1];
+      updated[idx + 1] = updated[idx];
+      updated[idx] = temp;
+      return updated;
+    });
+  };
+
+  const handleRemoveExif = (idx: number) => {
+    setExifDataList((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return;
@@ -163,11 +189,19 @@ export function PhotoUploader({ isOpen, onClose, onImportChapters, userId }: Pho
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-56 overflow-y-auto p-1">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-60 overflow-y-auto p-1">
                   {exifDataList.map((item, idx) => (
                     <div key={idx} className="relative rounded-xl border border-[#025259]/15 bg-[#FDF8F0] p-2 space-y-1.5 shadow-sm">
-                      <div className="h-20 w-full rounded-lg overflow-hidden border border-stone-200">
+                      <div className="relative h-20 w-full rounded-lg overflow-hidden border border-stone-200">
                         <img src={item.previewUrl} alt={item.fileName} className="h-full w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExif(idx)}
+                          className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-white text-[9px] font-bold shadow hover:bg-red-700 transition"
+                          title="Remove photo"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
                       </div>
                       <p className="text-[11px] font-bold text-[#025259] truncate">{item.fileName}</p>
                       <div className="flex items-center justify-between text-[10px] text-stone-600">
@@ -175,6 +209,26 @@ export function PhotoUploader({ isOpen, onClose, onImportChapters, userId }: Pho
                           <MapPin className="h-3 w-3 text-[#ff947a]" />
                           {item.lat ? `${item.lat.toFixed(2)}, ${item.lng?.toFixed(2)}` : 'Geotagged'}
                         </span>
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveExifLeft(idx)}
+                            disabled={idx === 0}
+                            className="p-0.5 rounded bg-white border border-[#025259]/20 text-[#025259] hover:bg-[#ff947a] transition disabled:opacity-30"
+                            title="Move Left"
+                          >
+                            <ArrowLeft className="h-2.5 w-2.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveExifRight(idx)}
+                            disabled={idx === exifDataList.length - 1}
+                            className="p-0.5 rounded bg-white border border-[#025259]/20 text-[#025259] hover:bg-[#ff947a] transition disabled:opacity-30"
+                            title="Move Right"
+                          >
+                            <ArrowRight className="h-2.5 w-2.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}

@@ -21,6 +21,7 @@ import { MenuScannerModal } from '@/components/ai/MenuScannerModal';
 import { ItineraryPlanner } from '@/components/ai/ItineraryPlanner';
 import { VisualDishFinder } from '@/components/ai/VisualDishFinder';
 import { SocialCaptionModal } from '@/components/ai/SocialCaptionModal';
+import { VisitStoryModal } from '@/components/ai/VisitStoryModal';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { subscribeToAuthChanges, logoutUser } from '@/lib/firebase/auth';
 import {
@@ -82,6 +83,8 @@ export default function DashboardPage() {
   const [isItineraryPlannerOpen, setIsItineraryPlannerOpen] = useState(false);
   const [visualSearchPhotoUrl, setVisualSearchPhotoUrl] = useState<string | null>(null);
   const [socialCaptionPlace, setSocialCaptionPlace] = useState<VisitedPlace | null>(null);
+  const [storyPlace, setStoryPlace] = useState<VisitedPlace | null>(null);
+  const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
 
   const [isGeneratingReel, setIsGeneratingReel] = useState(false);
   const [activeReelData, setActiveReelData] = useState<ReelData | null>(null);
@@ -89,6 +92,30 @@ export default function DashboardPage() {
   const [targetDefaultDate, setTargetDefaultDate] = useState<string | undefined>(undefined);
   const [editingVisit, setEditingVisit] = useState<VisitedPlace | null>(null);
   const [pendingAction, setPendingAction] = useState<'create_trip' | 'import_photos' | null>(null);
+
+  const handleOpenVisitStory = (place: VisitedPlace) => {
+    setStoryPlace(place);
+    setIsStoryModalOpen(true);
+  };
+
+  const handleSaveVisitStory = (visitId: string, storyText: string) => {
+    if (!activeTrip) return;
+    setVisitedPlacesMap((prevMap) => {
+      const tripPlaces = prevMap[activeTrip.id] || [];
+      const updatedPlaces = tripPlaces.map((p) => (p.id === visitId ? { ...p, story: storyText } : p));
+      const updatedMap = { ...prevMap, [activeTrip.id]: updatedPlaces };
+      saveStoredVisitedPlaces(updatedMap);
+
+      const targetPlace = updatedPlaces.find((p) => p.id === visitId);
+      if (targetPlace) {
+        setStoryPlace(targetPlace);
+        if (currentUser?.uid) {
+          saveVisitedPlaceToFirestore(currentUser.uid, targetPlace);
+        }
+      }
+      return updatedMap;
+    });
+  };
 
   // Handle adding Decoded Dish to Current Log
   const handleAddDishToVisitFromMenu = (dish: DecodedDish) => {
@@ -850,6 +877,7 @@ export default function DashboardPage() {
                   onConvertToVisited={handleConvertToVisited}
                   activeDayFilter={activeDayFilter}
                   onSelectDayFilter={(day) => setActiveDayFilter(day)}
+                  onOpenVisitStory={handleOpenVisitStory}
                 />
               </div>
 
@@ -940,6 +968,7 @@ export default function DashboardPage() {
                     onOpenVisualSearch={(url) => setVisualSearchPhotoUrl(url)}
                     onOpenSocialCaptions={(place) => setSocialCaptionPlace(place)}
                     onGenerateVisitReel={handleGenerateSingleVisitReel}
+                    onOpenVisitStory={handleOpenVisitStory}
                   />
                 ) : (
                   <CalendarView
@@ -1022,6 +1051,13 @@ export default function DashboardPage() {
         onClose={() => setSocialCaptionPlace(null)}
         place={socialCaptionPlace}
         destinationCity={activeTrip?.destination || 'Tokyo'}
+      />
+
+      <VisitStoryModal
+        isOpen={isStoryModalOpen}
+        onClose={() => setIsStoryModalOpen(false)}
+        visit={storyPlace}
+        onSaveStory={handleSaveVisitStory}
       />
 
       <PhotoUploader
